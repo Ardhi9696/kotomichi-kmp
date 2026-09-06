@@ -20,7 +20,7 @@ class LearnCardUseCase(
     private val vocabRepository: VocabRepository,
     private val progressRepository: ProgressRepository,
     private val deckRepository: DeckRepository,
-    private val fsrsCalculator: FsrsCalculator = FsrsCalculator()
+    private val fsrsCalculator: FsrsCalculator = FsrsCalculator
 ) {
     suspend fun getNewCardsForDeck(userId: String, deckId: Long, limit: Int = 20): List<Vocabulary> {
         val deckVocabIds = vocabRepository.getVocabIdsInDeck(deckId)
@@ -62,13 +62,12 @@ class LearnCardUseCase(
         progress = progress.copy(
             stability = result.newStability,
             difficulty = result.newDifficulty,
-            state = result.newState,
-            scheduledDays = result.scheduledDays,
-            dueDate = result.dueDate,
-            lastReview = System.currentTimeMillis(),
-            reps = progress.reps + 1,
+            retrievability = fsrsCalculator.calculateRetrievability(result.newStability, 0.0),
+            dueAt = result.dueDate,
+            lastReviewAt = System.currentTimeMillis(),
+            reviewCount = progress.reviewCount + 1,
             lapses = if (rating == Rating.AGAIN) progress.lapses + 1 else progress.lapses,
-            elapsedDays = 0.0
+            updatedAt = System.currentTimeMillis()
         )
         
         progressRepository.upsertProgress(progress)
@@ -103,7 +102,7 @@ class LearnCardUseCase(
 
 class ReviewCardUseCase(
     private val progressRepository: ProgressRepository,
-    private val fsrsCalculator: FsrsCalculator = FsrsCalculator()
+    private val fsrsCalculator: FsrsCalculator = FsrsCalculator
 ) {
     suspend fun getDueCards(userId: String, limit: Int = 50): List<SrsProgress> {
         return progressRepository.getDueCards(userId, limit)
@@ -125,23 +124,21 @@ class ReviewCardUseCase(
         
         val stabilityBefore = progress.stability
         val difficultyBefore = progress.difficulty
-        val elapsedDays = (System.currentTimeMillis() - progress.lastReview) / (24.0 * 60 * 60 * 1000)
         
         val result = fsrsCalculator.calculateNextReview(
-            progress.copy(elapsedDays = elapsedDays),
+            progress,
             rating
         )
         
         val newProgress = progress.copy(
             stability = result.newStability,
             difficulty = result.newDifficulty,
-            state = result.newState,
-            scheduledDays = result.scheduledDays,
-            dueDate = result.dueDate,
-            lastReview = System.currentTimeMillis(),
-            reps = progress.reps + 1,
+            retrievability = fsrsCalculator.calculateRetrievability(result.newStability, 0.0),
+            dueAt = result.dueDate,
+            lastReviewAt = System.currentTimeMillis(),
+            reviewCount = progress.reviewCount + 1,
             lapses = if (rating == Rating.AGAIN) progress.lapses + 1 else progress.lapses,
-            elapsedDays = elapsedDays
+            updatedAt = System.currentTimeMillis()
         )
         
         progressRepository.upsertProgress(newProgress)

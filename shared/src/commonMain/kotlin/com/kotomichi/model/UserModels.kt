@@ -5,26 +5,34 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserProfile(
     val id: String,
-    val email: String,
-    val name: String,
-    val role: UserRole,
-    val totalExp: Long = 0,
-    val currentLevel: Int = 1,
+    val displayName: String = "",
+    val role: UserRole = UserRole.USER,
+    val preferredLocale: String = "en",
+    val level: Int = 1,
+    val exp: Int = 0,
+    val lastReviewDate: Long? = null,
     val currentStreak: Int = 0,
     val longestStreak: Int = 0,
-    val lastActiveDate: Long = 0,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val theme: String = "system",
+    val lastSeenAt: Long? = null
 ) {
+    val name: String get() = displayName
+    val currentLevel: Int get() = level
+    val totalExp: Long get() = exp.toLong()
+    val lastActiveDate: Long get() = lastSeenAt ?: lastReviewDate ?: 0L
+    val email: String get() = ""
+
     fun expForNextLevel(): Long {
         val base = 100L
-        return (base * Math.pow(currentLevel.toDouble(), 1.5)).toLong()
+        return (base * Math.pow(level.toDouble(), 1.5)).toLong()
     }
     
     fun expProgressPercent(): Double {
-        val currentLevelExp = expForLevel(currentLevel)
-        val nextLevelExp = expForLevel(currentLevel + 1)
-        val progress = totalExp - currentLevelExp
+        val currentLevelExp = expForLevel(level)
+        val nextLevelExp = expForLevel(level + 1)
+        val progress = exp - currentLevelExp
         val needed = nextLevelExp - currentLevelExp
         return (progress.toDouble() / needed * 100).coerceIn(0.0, 100.0)
     }

@@ -36,6 +36,6 @@ class SyncWorker(
     
     companion object {
         const val WORK_NAME = "kotomichi_sync_work"
-        const val SYNC_INTERVAL_HOURS = 6
+        const val SYNC_INTERVAL_HOURS = 6L
     }
 }

@@ -1,0 +1,69 @@
+insert:
+INSERT OR REPLACE INTO SrsProgress VALUES ?;
+
+upsert:
+INSERT INTO SrsProgress (user_id, vocabulary_id, direction, stability, difficulty, retrievability, due_at, last_review_at, review_count, lapses, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(user_id, vocabulary_id, direction) DO UPDATE SET
+  stability = excluded.stability,
+  difficulty = excluded.difficulty,
+  retrievability = excluded.retrievability,
+  due_at = excluded.due_at,
+  last_review_at = excluded.last_review_at,
+  review_count = excluded.review_count,
+  lapses = excluded.lapses,
+  updated_at = excluded.updated_at;
+
+selectByUserAndVocabAndDirection:
+SELECT *
+FROM SrsProgress
+WHERE user_id = :userId AND vocabulary_id = :vocabularyId AND direction = :direction;
+
+selectByUser:
+SELECT *
+FROM SrsProgress
+WHERE user_id = :userId
+ORDER BY vocabulary_id, direction;
+
+selectDueCards:
+SELECT *
+FROM SrsProgress
+WHERE user_id = :userId AND due_at <= :now
+ORDER BY due_at
+LIMIT :limit;
+
+selectNewCardsForDeck:
+SELECT *
+FROM SrsProgress
+WHERE user_id = :userId
+  AND vocabulary_id IN (SELECT vocabulary_id FROM DeckVocabulary WHERE deck_id = :deckId)
+  AND review_count = 0
+ORDER BY created_at
+LIMIT :limit;
+
+selectLearnedVocabIds:
+SELECT vocabulary_id
+FROM SrsProgress
+WHERE user_id = :userId
+  AND review_count > 0;
+
+selectByDeck:
+SELECT *
+FROM SrsProgress
+WHERE user_id = :userId
+  AND vocabulary_id IN (SELECT vocabulary_id FROM DeckVocabulary WHERE deck_id = :deckId);
+
+observeDueCount:
+SELECT COUNT(*)
+FROM SrsProgress
+WHERE user_id = :userId AND due_at <= :now;
+
+observeByDeck:
+SELECT *
+FROM SrsProgress
+WHERE user_id = :userId
+  AND vocabulary_id IN (SELECT vocabulary_id FROM DeckVocabulary WHERE deck_id = :deckId);
+
+delete:
+DELETE FROM SrsProgress
+WHERE user_id = :userId AND vocabulary_id = :vocabularyId AND direction = :direction;

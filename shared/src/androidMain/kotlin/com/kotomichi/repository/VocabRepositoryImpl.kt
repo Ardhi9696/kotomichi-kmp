@@ -2,19 +2,13 @@ package com.kotomichi.repository
 
 import com.kotomichi.db.KotomichiDatabase
 import com.kotomichi.db.Vocabulary
-import com.kotomichi.db.Deck
 import com.kotomichi.db.DeckVocabulary
-import com.kotomichi.db.ExampleSentence
-import com.kotomichi.db.Collocation
 import com.kotomichi.model.Vocabulary as ModelVocabulary
-import com.kotomichi.model.Deck as ModelDeck
 import com.kotomichi.model.DeckVocabulary as ModelDeckVocabulary
-import com.kotomichi.model.ExampleSentence as ModelExampleSentence
-import com.kotomichi.model.Collocation as ModelCollocation
 import com.kotomichi.model.JlptLevel
+import app.cash.sqldelight.coroutines.asFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -26,6 +20,9 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.delete
+import io.ktor.http.contentType
+import io.ktor.client.request.setBody
+import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.http.HttpStatusCode
@@ -43,24 +40,24 @@ class VocabRepositoryImpl(
     private val deckVocabQueries = database.deckVocabularyQueries
     
     override suspend fun getVocabularyById(id: Long): ModelVocabulary? = withContext(Dispatchers.IO) {
-        vocabQueries.selectById(id)?.toModel()
+        vocabQueries.selectById(id).executeAsOneOrNull()?.toModel()
     }
     
     override suspend fun getVocabularyByIds(ids: List<Long>): List<ModelVocabulary> = withContext(Dispatchers.IO) {
-        vocabQueries.selectByIds(ids).map { it.toModel() }
+        vocabQueries.selectByIds(ids).executeAsList().map { it.toModel() }
     }
     
     override suspend fun getVocabIdsInDeck(deckId: Long): List<Long> = withContext(Dispatchers.IO) {
-        deckVocabQueries.selectVocabIdsByDeck(deckId)
+        deckVocabQueries.selectVocabIdsByDeck(deckId).executeAsList()
     }
     
     override suspend fun searchVocabulary(query: String, limit: Int): List<ModelVocabulary> = withContext(Dispatchers.IO) {
-        vocabQueries.searchByKanjiOrHiragana("%$query%", limit).map { it.toModel() }
+        vocabQueries.searchByKanjiOrHiragana("%$query%", limit.toLong()).executeAsList().map { it.toModel() }
     }
     
     override suspend fun getAllVocabulary(limit: Int, offset: Int): List<ModelVocabulary> = withContext(Dispatchers.IO) {
         // TODO: Implement pagination
-        vocabQueries.selectAll(limit, offset).map { it.toModel() }
+        vocabQueries.selectAll(limit.toLong(), offset.toLong()).executeAsList().map { it.toModel() }
     }
     
     override suspend fun insertVocabulary(vocab: ModelVocabulary): Long = withContext(Dispatchers.IO) {
@@ -70,7 +67,7 @@ class VocabRepositoryImpl(
     }
     
     override suspend fun updateVocabulary(vocab: ModelVocabulary) = withContext(Dispatchers.IO) {
-        vocabQueries.update(vocab.toEntity())
+        vocabQueries.insert(vocab.toEntity())
     }
     
     override suspend fun deleteVocabulary(id: Long) = withContext(Dispatchers.IO) {
@@ -86,7 +83,7 @@ class VocabRepositoryImpl(
     }
     
     override fun observeVocabulary(vocabId: Long): Flow<ModelVocabulary?> {
-        return vocabQueries.observeById(vocabId).map { it?.toModel() }
+        return vocabQueries.observeById(vocabId).asFlow().map { it.executeAsOneOrNull()?.toModel() }
     }
     
     // Remote sync methods
@@ -113,70 +110,53 @@ private fun Vocabulary.toModel(): ModelVocabulary = ModelVocabulary(
     kanji = kanji,
     hiragana = hiragana,
     romaji = romaji,
-    meaningIndonesian = meaning_indonesian,
-    meaningEnglish = meaning_english,
-    partOfSpeech = part_of_speech,
     jlptLevel = jlpt_level?.let { JlptLevel.valueOf(it) },
-    frequencyRank = frequency_rank,
-    audioUrlKanji = audio_url_kanji,
-    audioUrlHiragana = audio_url_hiragana,
+    partOfSpeech = part_of_speech,
+    isActive = is_active == 1L,
+    createdBy = created_by,
     createdAt = created_at,
-    updatedAt = updated_at
+    updatedAt = updated_at,
+    jftBasic = jft_basic == 1L,
+    godanVerb = godan_verb == 1L,
+    ichidanVerb = ichidan_verb == 1L,
+    fukisoku = fukisoku == 1L,
+    iAdjective = i_adjective == 1L,
+    naAdjective = na_adjective == 1L,
+    jidoushi = jidoushi == 1L,
+    tadoushi = tadoushi == 1L,
+    verbCollocation = verb_collocation == 1L
 )
 
-private fun ModelVocabulary.toEntity(): Vocabulary = Vocabulary(
+internal fun ModelVocabulary.toEntity(): Vocabulary = Vocabulary(
     id = id,
     kanji = kanji,
     hiragana = hiragana,
     romaji = romaji,
-    meaning_indonesian = meaningIndonesian,
-    meaning_english = meaningEnglish,
-    part_of_speech = partOfSpeech,
     jlpt_level = jlptLevel?.name,
-    frequency_rank = frequencyRank,
-    audio_url_kanji = audioUrlKanji,
-    audio_url_hiragana = audioUrlHiragana,
-    created_at = createdAt,
-    updated_at = updatedAt,
-    last_synced = System.currentTimeMillis()
-)
-
-private fun Deck.toModel(): ModelDeck = ModelDeck(
-    id = id,
-    title = title,
-    description = description,
-    jlptLevel = JlptLevel.valueOf(jlpt_level),
-    orderIndex = order_index,
-    isPublished = is_published == 1,
-    createdBy = created_by,
-    createdAt = created_at,
-    updatedAt = updated_at,
-    vocabularyCount = vocabulary_count,
-    masteryPercent = mastery_percent
-)
-
-private fun ModelDeck.toEntity(): Deck = Deck(
-    id = id,
-    title = title,
-    description = description,
-    jlpt_level = jlptLevel.name,
-    order_index = orderIndex,
-    is_published = if (isPublished) 1 else 0,
+    part_of_speech = partOfSpeech,
+    is_active = if (isActive) 1L else 0L,
     created_by = createdBy,
     created_at = createdAt,
     updated_at = updatedAt,
-    vocabulary_count = vocabularyCount,
-    mastery_percent = masteryPercent
+    jft_basic = if (jftBasic) 1L else 0L,
+    godan_verb = if (godanVerb) 1L else 0L,
+    ichidan_verb = if (ichidanVerb) 1L else 0L,
+    fukisoku = if (fukisoku) 1L else 0L,
+    i_adjective = if (iAdjective) 1L else 0L,
+    na_adjective = if (naAdjective) 1L else 0L,
+    jidoushi = if (jidoushi) 1L else 0L,
+    tadoushi = if (tadoushi) 1L else 0L,
+    verb_collocation = if (verbCollocation) 1L else 0L
 )
 
 private fun DeckVocabulary.toModel(): ModelDeckVocabulary = ModelDeckVocabulary(
     deckId = deck_id,
     vocabularyId = vocabulary_id,
-    orderInDeck = order_in_deck
+    orderInDeck = order_in_deck?.toInt()
 )
 
 private fun ModelDeckVocabulary.toEntity(): DeckVocabulary = DeckVocabulary(
     deck_id = deckId,
     vocabulary_id = vocabularyId,
-    order_in_deck = orderInDeck
+    order_in_deck = orderInDeck?.toLong()
 )

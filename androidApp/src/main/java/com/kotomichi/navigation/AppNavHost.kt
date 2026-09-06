@@ -32,7 +32,7 @@ fun AppNavHost(isAuthenticated: Boolean) {
             route = "learn/{deckId}",
             arguments = listOf(androidx.navigation.navArgument("deckId") { type = androidx.navigation.NavType.LongType })
         ) { backStackEntry ->
-            val deckId = backStackEntry.getLong() ?: 0L
+            val deckId = backStackEntry.arguments?.getLong("deckId") ?: 0L
             LearnScreen(deckId = deckId, onComplete = { navController.navigateUp() })
         }
         composable("review") {

@@ -1,6 +1,7 @@
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.androidLibrary)
     alias(libs.plugins.sqldelight)
 }
 
@@ -10,13 +11,7 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
-    val hostOs = System.getProperty("os.name")
-    val isMingwX64 = hostOs.startsWith("Windows")
-    val nativeTarget = when {
-        hostOs == "Mac OS X" -> listOf(iosX64(), iosArm64(), iosSimulatorArm64())
-        hostOs == "Linux" -> listOf(iosX64(), iosArm64(), iosSimulatorArm64())
-        else -> listOf()
-    }
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
         val commonMain by getting {
@@ -28,6 +23,7 @@ kotlin {
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.client.logging)
                 implementation(libs.sqldelight.runtime)
+                implementation(libs.sqldelight.coroutines)
                 implementation(libs.koin.core)
                 implementation(libs.koin.android)
             }
@@ -62,6 +58,7 @@ sqldelight {
     databases {
         create("KotomichiDatabase") {
             packageName.set("com.kotomichi.db")
+            dialect("app.cash.sqldelight:sqlite-3-35-dialect:2.0.1")
         }
     }
 }

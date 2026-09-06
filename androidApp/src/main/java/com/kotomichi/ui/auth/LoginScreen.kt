@@ -2,11 +2,15 @@ package com.kotomichi.ui.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.spacer
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,65 +21,48 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.PopupProperties
-import com.kotomichi.ui.common.KotomichiTheme
+import com.kotomichi.di.get
 import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.model.LoginRequest
 import kotlinx.coroutines.launch
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.spacer
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {
-    val authUseCase: AuthUseCase = viewModel()
+    val authUseCase: AuthUseCase = get()
+    val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showErrorDialog by remember { mutableStateOf(false) }
-    
-    val handleLogin = {
+
+    val handleLogin: () -> Unit = {
         if (email.isBlank() || password.isBlank()) {
             errorMessage = "Email dan kata sandi wajib diisi"
             showErrorDialog = true
-            return@handleLogin
-        }
-        isLoading = true
-        errorMessage = null
-        
-        androidx.lifecycle.lifecycleScope.launch {
-            try {
-                authUseCase.login(LoginRequest(email, password))
-                onLoginSuccess()
-            } catch (e: Exception) {
-                errorMessage = "Login gagal: ${e.message}"
-                showErrorDialog = true
-            } finally {
-                isLoading = false
+        } else {
+            isLoading = true
+            errorMessage = null
+
+            scope.launch {
+                try {
+                    authUseCase.login(LoginRequest(email, password))
+                    onLoginSuccess()
+                } catch (e: Exception) {
+                    errorMessage = "Login gagal: ${e.message}"
+                    showErrorDialog = true
+                } finally {
+                    isLoading = false
+                }
             }
         }
     }
@@ -130,7 +117,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                             onValueChange = { email = it },
                             label = { Text("Email") },
                             singleLine = true,
-                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+                            keyboardOptions = KeyboardOptions(
                                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
                                 imeAction = androidx.compose.ui.text.input.ImeAction.Next
                             ),
@@ -143,12 +130,12 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                             onValueChange = { password = it },
                             label = { Text("Kata Sandi") },
                             singleLine = true,
-                            visualTransformation = androidx.compose.material3.PasswordVisualTransformation(),
-                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
                                 imeAction = androidx.compose.ui.text.input.ImeAction.Done
                             ),
-                            keyboardActions = androidx.compose.ui.text.input.KeyboardActions(
-                                onDone = handleLogin
+                            keyboardActions = KeyboardActions(
+                                onDone = { handleLogin() }
                             ),
                             modifier = Modifier.fillMaxWidth(),
                             isError = errorMessage != null && password.isNotBlank()

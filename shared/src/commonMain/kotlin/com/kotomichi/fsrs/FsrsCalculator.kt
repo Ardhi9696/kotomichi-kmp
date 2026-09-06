@@ -12,7 +12,7 @@ import kotlin.math.pow
 
 object FsrsCalculator {
     
-    private const val DEFAULT_PARAMETERS = doubleArrayOf(
+    private val DEFAULT_PARAMETERS = doubleArrayOf(
         0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046,
         1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315,
         2.9898, 0.34945, 0.50285, 0.6621
@@ -112,7 +112,7 @@ object FsrsCalculator {
     
     private fun nextDifficulty(difficulty: Double, rating: Rating, parameters: FsrsParameters): Double {
         val w = parameters.w
-        val nextDifficulty = difficulty - w[8] * (rating.fsrsValue - 3) + w[9] * (rating.fsrsValue - 3).pow(2)
+        val nextDifficulty = difficulty - w[8] * (rating.fsrsValue - 3).toDouble() + w[9] * (rating.fsrsValue - 3).toDouble().pow(2)
         return nextDifficulty.coerceIn(MIN_DIFFICULTY, MAX_DIFFICULTY)
     }
     
@@ -126,8 +126,8 @@ object FsrsCalculator {
         val retrievability = calculateRetrievability(stability, 0.0)
         
         return when (rating) {
-            Rating.AGAIN -> w[10] * pow(stability, -w[11]) * pow(difficulty, -w[12]) * pow(1 - retrievability, w[13])
-            Rating.HARD -> w[14] * pow(stability, -w[15]) * pow(difficulty, -w[16]) * pow(1 - retrievability, w[17])
+            Rating.AGAIN -> w[10] * stability.pow(-w[11]) * difficulty.pow(-w[12]) * (1 - retrievability).pow(w[13])
+            Rating.HARD -> w[14] * stability.pow(-w[15]) * difficulty.pow(-w[16]) * (1 - retrievability).pow(w[17])
             Rating.GOOD -> stability * (1 + w[18] * (1 - retrievability))
             Rating.EASY -> stability * (1 + w[19] * (1 - retrievability))
         }
@@ -163,13 +163,10 @@ object FsrsCalculator {
             direction = direction,
             stability = 0.0,
             difficulty = 0.0,
-            elapsedDays = 0.0,
-            scheduledDays = 0.0,
-            reps = 0,
-            lapses = 0,
-            state = CardState.NEW,
-            lastReview = now,
-            dueDate = now
+            dueAt = now,
+            lastReviewAt = now,
+            reviewCount = 0,
+            lapses = 0
         )
     }
     

@@ -17,8 +17,8 @@ class GamificationUseCase(
         const val EXP_REVIEW_HARD = 3L
         const val EXP_REVIEW_EASY = 2L
         const val EXP_DAILY_STREAK_BASE = 20L
-        const val STREAK_BONUS_THRESHOLDS = listOf(7, 30, 90, 180, 365)
-        const val STREAK_BONUS_EXP = listOf(50L, 200L, 500L, 1000L, 2000L)
+        val STREAK_BONUS_THRESHOLDS = listOf(7, 30, 90, 180, 365)
+        val STREAK_BONUS_EXP = listOf(50L, 200L, 500L, 1000L, 2000L)
     }
     
     fun calculateExpForLevel(level: Int): Long {
@@ -61,13 +61,13 @@ class GamificationUseCase(
         
         val currentStreak = progressRepository.getUserStatistics(userId).currentStreak
         val newStreak = when {
-            daysDiff == 0 -> currentStreak
-            daysDiff == 1 -> currentStreak + 1
+            daysDiff == 0L -> currentStreak
+            daysDiff == 1L -> currentStreak + 1
             else -> 1
         }
         
         var bonusExp = 0L
-        if (daysDiff == 1) {
+        if (daysDiff == 1L) {
             bonusExp = EXP_DAILY_STREAK_BASE
             STREAK_BONUS_THRESHOLDS.forEachIndexed { index, threshold ->
                 if (newStreak % threshold == 0) {

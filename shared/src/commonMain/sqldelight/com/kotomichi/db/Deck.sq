@@ -1,0 +1,35 @@
+selectById:
+SELECT * FROM Deck WHERE id = :id;
+
+observeById:
+SELECT * FROM Deck WHERE id = :id;
+
+deleteById:
+DELETE FROM Deck WHERE id = :id;
+
+selectAll:
+SELECT * FROM Deck ORDER BY order_index;
+
+selectPublished:
+SELECT *
+FROM Deck
+WHERE is_published = 1
+ORDER BY order_index;
+
+selectByJlptLevel:
+SELECT *
+FROM Deck
+WHERE jlpt_level = :jlptLevel
+ORDER BY order_index;
+
+insert:
+INSERT OR REPLACE INTO Deck VALUES ?;
+
+updatePublished:
+UPDATE Deck SET is_published = :isPublished WHERE id = :id;
+
+observePublished:
+SELECT *
+FROM Deck
+WHERE is_published = 1
+ORDER BY order_index;

@@ -1,6 +1,8 @@
 package com.kotomichi.ui.dashboard
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,12 +10,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,31 +33,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kotomichi.app.R
+import com.kotomichi.di.get
 import com.kotomichi.model.Deck
 import com.kotomichi.model.UserProfile
 import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.usecase.DeckProgressUseCase
 import com.kotomichi.usecase.GamificationUseCase
 import com.kotomichi.usecase.ReviewCardUseCase
-import kotlinx.coroutines.flow.collectAsStateWithLifecycle
-import androidx.compose.material3.ProgressIndicator
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,18 +60,19 @@ fun DashboardScreen(
     onNavigateToLearn: (Long) -> Unit,
     onNavigateToReview: () -> Unit
 ) {
-    val authUseCase: AuthUseCase = viewModel()
-    val deckProgressUseCase: DeckProgressUseCase = viewModel()
-    val gamificationUseCase: GamificationUseCase = viewModel()
-    val reviewUseCase: ReviewCardUseCase = viewModel()
-    
+    val authUseCase: AuthUseCase = get()
+    val deckProgressUseCase: DeckProgressUseCase = get()
+    val gamificationUseCase: GamificationUseCase = get()
+    val reviewUseCase: ReviewCardUseCase = get()
+    val scope = rememberCoroutineScope()
+
     val user by authUseCase.currentUser.collectAsStateWithLifecycle(null)
     val decks by remember { mutableStateOf<List<Deck>>(emptyList()) }
     val deckProgressMap by remember { mutableStateOf<Map<Long, com.kotomichi.model.DeckProgress>>(emptyMap()) }
     val dueCount by reviewUseCase.observeDueCount(user?.id ?: "").collectAsStateWithLifecycle(0)
     var isLoading by remember { mutableStateOf(true) }
-    
-    androidx.lifecycle.lifecycleScope.launch {
+
+    scope.launch {
         // Load data
         isLoading = false
     }
@@ -92,14 +97,14 @@ fun DashboardScreen(
                 actions = {
                     IconButton(onClick = { /* Open profile */ }) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.defaults.Person,
+                            imageVector = Icons.Filled.Person,
                             contentDescription = "Profil",
                             tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                     IconButton(onClick = { /* Open settings */ }) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.defaults.Settings,
+                            imageVector = Icons.Filled.Settings,
                             contentDescription = "Pengaturan",
                             tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -231,7 +236,7 @@ fun ProfileCard(
                     Text("${(totalExp - currentLevelExp)} / ${(nextLevelExp - currentLevelExp)} EXP", fontSize = 12.sp)
                 }
                 androidx.compose.material3.LinearProgressIndicator(
-                    progress = (expProgress / 100).coerceIn(0f, 1f),
+                    progress = { (expProgress / 100).toFloat().coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(8.dp),
                     color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                     trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
@@ -244,13 +249,13 @@ fun ProfileCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 StreakItem(
-                    icon = androidx.compose.material.icons.defaults.LocalFireDepartment,
+                    icon = Icons.Filled.LocalFireDepartment,
                     label = "Streak",
                     value = "$currentStreak hari",
                     color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
                 )
                 StreakItem(
-                    icon = androidx.compose.material.icons.defaults.Psychology,
+                    icon = Icons.Filled.Psychology,
                     label = "Kuasai",
                     value = "${user.totalExp / 100} kata",
                     color = androidx.compose.material3.MaterialTheme.colorScheme.secondary
@@ -269,7 +274,7 @@ fun StreakItem(
 ) {
     Column(
         modifier = Modifier
-            .weight(1f)
+            .fillMaxWidth()
             .padding(12.dp)
             .background(
                 color = color.copy(alpha = 0.1f),
@@ -400,12 +405,12 @@ fun DeckItem(
             ) {
                 Column {
                     Text(text = deck.title, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "JLPT ${deck.jlptLevel.name}", fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = "JLPT ${deck.jlptLevel?.name ?: ""}", fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 
                 if (!isUnlocked) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.defaults.Lock,
+                        imageVector = Icons.Filled.Lock,
                         contentDescription = "Terkunci",
                         tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -421,7 +426,7 @@ fun DeckItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Kemahiran", fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                     androidx.compose.material3.LinearProgressIndicator(
-                        progress = (mastery / 100).coerceIn(0f, 1f),
+                        progress = { (mastery / 100).toFloat().coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxWidth().height(6.dp),
                         color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                     )

@@ -8,7 +8,7 @@
         <item name="colorTertiaryContainer">@color/orange_100</item>
         <item name="colorError">@color/red_700</item>
         <item name="colorErrorContainer">@color/red_100</item>
-        <item name="colorBackground">@color/background_light</item>
+        <item name="android:colorBackground">@color/background_light</item>
         <item name="colorSurface">@color/surface_light</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorOnPrimaryContainer">@color/purple_900</item>

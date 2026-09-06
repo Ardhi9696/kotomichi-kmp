@@ -4,17 +4,20 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class DirectionThresholds(
-    val direction: Direction,
-    val easyThresholdSec: Int = 8,
-    val goodThresholdSec: Int = 15,
+    val direction: Direction = Direction.KANJI_TO_MEANING,
+    val fastThresholdMs: Int = 8000,
+    val goodThresholdMs: Int = 15000,
+    val updatedBy: String? = null,
     val updatedAt: Long = System.currentTimeMillis()
 ) {
+    val easyThresholdSec: Int get() = fastThresholdMs / 1000
+    val goodThresholdSec: Int get() = goodThresholdMs / 1000
+
     fun ratingFromResponseTime(responseTimeMs: Long, isCorrect: Boolean): Rating {
         if (!isCorrect) return Rating.AGAIN
-        val seconds = responseTimeMs / 1000
         return when {
-            seconds < easyThresholdSec -> Rating.EASY
-            seconds < goodThresholdSec -> Rating.GOOD
+            responseTimeMs < fastThresholdMs -> Rating.EASY
+            responseTimeMs < goodThresholdMs -> Rating.GOOD
             else -> Rating.HARD
         }
     }
@@ -23,8 +26,17 @@ data class DirectionThresholds(
 @Serializable
 data class SystemConfig(
     val key: String,
-    val value: String,
+    val value: String = "",
     val description: String? = null,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+@Serializable
+data class AppConfig(
+    val key: String,
+    val valueJson: String,
+    val description: String? = null,
+    val updatedBy: String? = null,
     val updatedAt: Long = System.currentTimeMillis()
 )
 

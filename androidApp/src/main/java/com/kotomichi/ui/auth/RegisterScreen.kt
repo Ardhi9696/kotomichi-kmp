@@ -2,10 +2,14 @@ package com.kotomichi.ui.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.spacer
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,15 +20,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kotomichi.di.get
 import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.model.RegisterRequest
 import kotlinx.coroutines.launch
@@ -32,7 +36,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(onRegisterSuccess: () -> Unit) {
-    val authUseCase: AuthUseCase = viewModel()
+    val authUseCase: AuthUseCase = get()
+    val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -40,36 +45,36 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showErrorDialog by remember { mutableStateOf(false) }
-    
-    val handleRegister = {
-        if (name.isBlank() || email.isBlank() || password.isBlank()) {
-            errorMessage = "Semua field wajib diisi"
-            showErrorDialog = true
-            return@handleRegister
-        }
-        if (password != confirmPassword) {
-            errorMessage = "Kata sandi tidak cocok"
-            showErrorDialog = true
-            return@handleRegister
-        }
-        if (password.length < 8) {
-            errorMessage = "Kata sandi minimal 8 karakter"
-            showErrorDialog = true
-            return@handleRegister
-        }
-        
-        isLoading = true
-        errorMessage = null
-        
-        androidx.lifecycle.lifecycleScope.launch {
-            try {
-                authUseCase.register(RegisterRequest(email, password, name))
-                onRegisterSuccess()
-            } catch (e: Exception) {
-                errorMessage = "Registrasi gagal: ${e.message}"
+
+    val handleRegister: () -> Unit = {
+        when {
+            name.isBlank() || email.isBlank() || password.isBlank() -> {
+                errorMessage = "Semua field wajib diisi"
                 showErrorDialog = true
-            } finally {
-                isLoading = false
+            }
+            password != confirmPassword -> {
+                errorMessage = "Kata sandi tidak cocok"
+                showErrorDialog = true
+            }
+            password.length < 8 -> {
+                errorMessage = "Kata sandi minimal 8 karakter"
+                showErrorDialog = true
+            }
+            else -> {
+                isLoading = true
+                errorMessage = null
+
+                scope.launch {
+                    try {
+                        authUseCase.register(RegisterRequest(email, password, name))
+                        onRegisterSuccess()
+                    } catch (e: Exception) {
+                        errorMessage = "Registrasi gagal: ${e.message}"
+                        showErrorDialog = true
+                    } finally {
+                        isLoading = false
+                    }
+                }
             }
         }
     }
@@ -117,14 +122,14 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit) {
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         
-                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
                             label = { Text("Nama") },
                             singleLine = true,
-                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+                            keyboardOptions = KeyboardOptions(
                                 imeAction = androidx.compose.ui.text.input.ImeAction.Next
                             ),
                             modifier = Modifier.fillMaxWidth()
@@ -135,7 +140,7 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit) {
                             onValueChange = { email = it },
                             label = { Text("Email") },
                             singleLine = true,
-                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+                            keyboardOptions = KeyboardOptions(
                                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
                                 imeAction = androidx.compose.ui.text.input.ImeAction.Next
                             ),
@@ -147,8 +152,8 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit) {
                             onValueChange = { password = it },
                             label = { Text("Kata Sandi") },
                             singleLine = true,
-                            visualTransformation = androidx.compose.material3.PasswordVisualTransformation(),
-                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
                                 imeAction = androidx.compose.ui.text.input.ImeAction.Next
                             ),
                             modifier = Modifier.fillMaxWidth()
@@ -159,12 +164,12 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit) {
                             onValueChange = { confirmPassword = it },
                             label = { Text("Konfirmasi Kata Sandi") },
                             singleLine = true,
-                            visualTransformation = androidx.compose.material3.PasswordVisualTransformation(),
-                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
                                 imeAction = androidx.compose.ui.text.input.ImeAction.Done
                             ),
-                            keyboardActions = androidx.compose.ui.text.input.KeyboardActions(
-                                onDone = handleRegister
+                            keyboardActions = KeyboardActions(
+                                onDone = { handleRegister() }
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )

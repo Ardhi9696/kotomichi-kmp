@@ -1,0 +1,8 @@
+upsert:
+INSERT INTO DirectionThreshold (direction, fast_threshold_ms, good_threshold_ms, updated_by, updated_at)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(direction) DO UPDATE SET
+  fast_threshold_ms = excluded.fast_threshold_ms,
+  good_threshold_ms = excluded.good_threshold_ms,
+  updated_by = excluded.updated_by,
+  updated_at = excluded.updated_at;

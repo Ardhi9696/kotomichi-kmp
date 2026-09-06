@@ -1,0 +1,12 @@
+selectVocabIdsByDeck:
+SELECT vocabulary_id
+FROM DeckVocabulary
+WHERE deck_id = :deckId
+ORDER BY order_in_deck;
+
+insert:
+INSERT OR REPLACE INTO DeckVocabulary VALUES ?;
+
+delete:
+DELETE FROM DeckVocabulary
+WHERE deck_id = :deckId AND vocabulary_id = :vocabId;

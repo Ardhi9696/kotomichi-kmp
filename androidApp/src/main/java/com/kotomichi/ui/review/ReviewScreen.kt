@@ -1,5 +1,6 @@
 package com.kotomichi.ui.review
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,8 +10,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,45 +27,37 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kotomichi.app.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kotomichi.di.get
 import com.kotomichi.model.Direction
 import com.kotomichi.model.Rating
 import com.kotomichi.model.SrsProgress
 import com.kotomichi.model.Vocabulary
+import com.kotomichi.model.VocabularyTranslation
 import com.kotomichi.usecase.ReviewCardUseCase
-import kotlinx.coroutines.flow.collectAsStateWithLifecycle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.defaults.VolumeUp
-import androidx.compose.material.icons.defaults.Check
-import androidx.compose.material.icons.defaults.Close
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewScreen(onComplete: () -> Unit) {
-    val reviewUseCase: ReviewCardUseCase = viewModel()
-    
+    val reviewUseCase: ReviewCardUseCase = get()
+    val scope = rememberCoroutineScope()
+
     var currentProgress by remember { mutableStateOf<SrsProgress?>(null) }
     var currentVocab by remember { mutableStateOf<Vocabulary?>(null) }
     var showAnswer by remember { mutableStateOf(false) }
@@ -64,25 +65,40 @@ fun ReviewScreen(onComplete: () -> Unit) {
     var cardsReviewed by remember { mutableStateOf(0) }
     var startTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var showComplete by remember { mutableStateOf(false) }
-    
+
     val dueCount by reviewUseCase.observeDueCount("user_id").collectAsStateWithLifecycle(0)
-    
-    // Load first card
-    androidx.lifecycle.lifecycleScope.launch {
+
+    suspend fun loadNextCard() {
+        showAnswer = false
+        startTime = System.currentTimeMillis()
         val dueCards = reviewUseCase.getDueCards("user_id", 1)
         if (dueCards.isNotEmpty()) {
             currentProgress = dueCards.first()
-            // TODO: Load vocabulary from repository
-            // currentVocab = vocabRepository.getVocabularyById(currentProgress.vocabularyId)
+        } else {
+            showComplete = true
+        }
+    }
+
+    suspend fun handleAnswer(progress: SrsProgress, vocab: Vocabulary, rating: Rating, responseTime: Long) {
+        reviewUseCase.submitReviewAnswer("user_id", vocab.id, progress.direction, rating, responseTime)
+        cardsReviewed++
+        loadNextCard()
+    }
+
+    // Load first card
+    scope.launch {
+        val dueCards = reviewUseCase.getDueCards("user_id", 1)
+        if (dueCards.isNotEmpty()) {
+            currentProgress = dueCards.first()
         }
         isLoading = false
     }
-    
+
     if (isLoading) {
         LoadingScreen()
         return
     }
-    
+
     currentProgress?.let { progress ->
         // Mock vocab for now
         val vocab = Vocabulary(
@@ -90,48 +106,29 @@ fun ReviewScreen(onComplete: () -> Unit) {
             kanji = "勉強",
             hiragana = "べんきょう",
             romaji = "benkyou",
-            meaningIndonesian = "belajar",
-            meaningEnglish = "study"
+            translations = listOf(
+                VocabularyTranslation(vocabularyId = progress.vocabularyId, locale = "id", meaning = "belajar"),
+                VocabularyTranslation(vocabularyId = progress.vocabularyId, locale = "en", meaning = "study")
+            )
         )
         currentVocab = vocab
-        
+
         ReviewCardScreen(
             progress = progress,
             vocab = vocab,
             showAnswer = showAnswer,
             onShowAnswer = { showAnswer = true },
             onAnswer = { rating, responseTime ->
-                handleAnswer(progress, vocab, rating, responseTime)
+                scope.launch { handleAnswer(progress, vocab, rating, responseTime) }
             },
             dueCount = dueCount,
             cardsReviewed = cardsReviewed,
             onComplete = onComplete
         )
     } ?: CompletionScreen(cardsReviewed = cardsReviewed, onComplete = onComplete)
-    
-    fun handleAnswer(progress: SrsProgress, vocab: Vocabulary, rating: Rating, responseTime: Long) {
-        androidx.lifecycle.lifecycleScope.launch {
-            val newProgress = reviewUseCase.submitReviewAnswer("user_id", vocab.id, progress.direction, rating, responseTime)
-            cardsReviewed++
-            loadNextCard()
-        }
-    }
-    
-    fun loadNextCard() {
-        showAnswer = false
-        startTime = System.currentTimeMillis()
-        androidx.lifecycle.lifecycleScope.launch {
-            val dueCards = reviewUseCase.getDueCards("user_id", 1)
-            if (dueCards.isNotEmpty()) {
-                currentProgress = dueCards.first()
-                // currentVocab = vocabRepository.getVocabularyById(currentProgress.vocabularyId)
-            } else {
-                showComplete = true
-            }
-        }
-    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewCardScreen(
     progress: SrsProgress,
@@ -145,6 +142,7 @@ fun ReviewCardScreen(
 ) {
     val retrievability = com.kotomichi.fsrs.FsrsCalculator.calculateRetrievability(progress)
     val progressPercent = (cardsReviewed.toFloat() / dueCount).coerceIn(0f, 1f)
+    var startTime by remember { mutableStateOf(System.currentTimeMillis()) }
     
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -161,7 +159,7 @@ fun ReviewCardScreen(
                 navigationIcon = {
                     IconButton(onClick = onComplete) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.defaults.Close,
+                            imageVector = Icons.Filled.Close,
                             contentDescription = "Tutup"
                         )
                     }
@@ -173,7 +171,7 @@ fun ReviewCardScreen(
             
             // Progress Bar
             LinearProgressIndicator(
-                progress = progressPercent,
+                progress = { progressPercent },
                 modifier = Modifier.fillMaxWidth().height(4.dp)
             )
             
@@ -185,7 +183,7 @@ fun ReviewCardScreen(
                 StatItem(
                     label = "Retrievability",
                     value = "%.0f%%".format(retrievability * 100),
-                    icon = androidx.compose.material.icons.defaults.Psychology,
+                    icon = Icons.Filled.Psychology,
                     color = if (retrievability > 0.9) androidx.compose.material3.MaterialTheme.colorScheme.primary
                     else if (retrievability > 0.7) androidx.compose.material3.MaterialTheme.colorScheme.tertiary
                     else androidx.compose.material3.MaterialTheme.colorScheme.error
@@ -193,13 +191,13 @@ fun ReviewCardScreen(
                 StatItem(
                     label = "Stability",
                     value = "%.1f hari".format(progress.stability),
-                    icon = androidx.compose.material.icons.defaults.Schedule,
+                    icon = Icons.Filled.Schedule,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.secondary
                 )
                 StatItem(
                     label = "Due",
                     value = if (progress.dueDate < System.currentTimeMillis()) "Sekarang" else "Belum",
-                    icon = androidx.compose.material.icons.defaults.AccessTime,
+                    icon = Icons.Filled.AccessTime,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
                 )
             }
@@ -236,7 +234,7 @@ fun ReviewCardScreen(
                             
                             IconButton(onClick = { /* Play audio */ }) {
                                 Icon(
-                                    imageVector = VolumeUp,
+                                    imageVector = Icons.Filled.VolumeUp,
                                     contentDescription = "Dengarkan",
                                     tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
                                 )
@@ -249,7 +247,7 @@ fun ReviewCardScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(24.dp)
                             ) {
-                                androidx.compose.foundation.layout.Divider(
+                                androidx.compose.material3.HorizontalDivider(
                                     modifier = Modifier.fillMaxWidth(),
                                     color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant
                                 )
@@ -295,7 +293,7 @@ fun ReviewCardScreen(
 }
 
 @Composable
-fun StatItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
+fun androidx.compose.foundation.layout.RowScope.StatItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
     Column(
         modifier = Modifier.weight(1f),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -386,7 +384,7 @@ fun RatingButtons(onRating: (Rating) -> Unit) {
 }
 
 @Composable
-fun RatingButton(
+internal fun androidx.compose.foundation.layout.RowScope.RatingButton(
     rating: Rating,
     label: String,
     color: Color,
@@ -414,7 +412,7 @@ fun CompletionScreen(cardsReviewed: Int, onComplete: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                imageVector = androidx.compose.material.icons.defaults.CheckCircle,
+                imageVector = Icons.Filled.CheckCircle,
                 contentDescription = "",
                 tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(80.dp)
@@ -440,8 +438,8 @@ fun LoadingScreen() {
 
 fun getQuestionText(vocab: Vocabulary, direction: Direction): String {
     return when (direction) {
-        Direction.KANJI_TO_MEANING -> vocab.kanji
-        Direction.KANJI_TO_HIRAGANA -> vocab.kanji
+        Direction.KANJI_TO_MEANING -> vocab.kanji ?: vocab.hiragana
+        Direction.KANJI_TO_HIRAGANA -> vocab.kanji ?: vocab.hiragana
         Direction.HIRAGANA_TO_MEANING -> vocab.hiragana
         Direction.MEANING_TO_HIRAGANA -> vocab.meaningIndonesian
         Direction.HIRAGANA_TO_KANJI -> vocab.hiragana
@@ -453,9 +451,9 @@ fun getAnswerText(vocab: Vocabulary, direction: Direction): String {
     return when (direction) {
         Direction.KANJI_TO_MEANING -> "${vocab.meaningIndonesian} (${vocab.hiragana})"
         Direction.KANJI_TO_HIRAGANA -> vocab.hiragana
-        Direction.HIRAGANA_TO_MEANING -> "${vocab.meaningIndonesian} (${vocab.kanji})"
+        Direction.HIRAGANA_TO_MEANING -> "${vocab.meaningIndonesian} (${vocab.kanji ?: vocab.hiragana})"
         Direction.MEANING_TO_HIRAGANA -> vocab.hiragana
-        Direction.HIRAGANA_TO_KANJI -> vocab.kanji
-        Direction.MEANING_TO_KANJI -> vocab.kanji
+        Direction.HIRAGANA_TO_KANJI -> vocab.kanji ?: vocab.hiragana
+        Direction.MEANING_TO_KANJI -> vocab.kanji ?: vocab.hiragana
     }
 }

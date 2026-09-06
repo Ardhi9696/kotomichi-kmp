@@ -1,7 +1,7 @@
 package com.kotomichi.di
 
 import android.content.Context
-import com.kotomichi.db.KotomichiDatabase
+import com.kotomichi.db.DbFactory
 import com.kotomichi.repository.AuthRepository
 import com.kotomichi.repository.AuthRepositoryImpl
 import com.kotomichi.repository.DeckRepository
@@ -18,11 +18,10 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
-import org.koin.core.module.Module
-import org.koin.core.qualifier.named
+import org.koin.dsl.module
 
 val androidModule = module {
-    single { KotomichiDatabase.getInstance(androidContext()) }
+    single { DbFactory.create(androidContext()) }
     
     single { HttpClient(Android) {
         install(ContentNegotiation) {

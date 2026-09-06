@@ -73,5 +73,5 @@
     <color name="card_new">#E3F2FD</color>
     <color name="card_learning">#FFF3E0</color>
     <color name="card_review">#E8F5E9</color>
-    <color name "card_relearning">#FCE4EC</color>
+    <color name="card_relearning">#FCE4EC</color>
 </resources>

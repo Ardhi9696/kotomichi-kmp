@@ -25,8 +25,6 @@ interface ProgressRepository {
     suspend fun insertReviewLog(log: ReviewLog)
     suspend fun getReviewLogs(userId: String, limit: Int, offset: Int): List<ReviewLog>
     suspend fun getReviewLogsByVocab(userId: String, vocabularyId: Long): List<ReviewLog>
-    suspend fun getUnsyncedReviewLogs(userId: String): List<ReviewLog>
-    suspend fun markReviewLogsSynced(logIds: List<Long>)
     
     suspend fun getDeckProgress(userId: String, deckId: Long): DeckProgress
     suspend fun getDailyStats(userId: String, days: Int): List<DailyStats>

@@ -1,0 +1,125 @@
+CREATE TABLE Vocabulary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kanji TEXT,
+    hiragana TEXT NOT NULL,
+    romaji TEXT,
+    jlpt_level TEXT,
+    part_of_speech TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_by TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    jft_basic INTEGER NOT NULL DEFAULT 0,
+    godan_verb INTEGER NOT NULL DEFAULT 0,
+    ichidan_verb INTEGER NOT NULL DEFAULT 0,
+    fukisoku INTEGER NOT NULL DEFAULT 0,
+    i_adjective INTEGER NOT NULL DEFAULT 0,
+    na_adjective INTEGER NOT NULL DEFAULT 0,
+    jidoushi INTEGER NOT NULL DEFAULT 0,
+    tadoushi INTEGER NOT NULL DEFAULT 0,
+    verb_collocation INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_vocab_kanji ON Vocabulary(kanji);
+CREATE INDEX idx_vocab_hiragana ON Vocabulary(hiragana);
+CREATE INDEX idx_vocab_jlpt ON Vocabulary(jlpt_level);
+CREATE INDEX idx_vocab_active ON Vocabulary(is_active);
+
+CREATE TABLE VocabularyTranslation (
+    vocabulary_id INTEGER NOT NULL,
+    locale TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    PRIMARY KEY (vocabulary_id, locale)
+);
+
+CREATE TABLE ExampleSentence (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vocabulary_id INTEGER NOT NULL,
+    japanese TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_example_vocab ON ExampleSentence(vocabulary_id);
+
+CREATE TABLE ExampleSentenceTranslation (
+    example_sentence_id INTEGER NOT NULL,
+    locale TEXT NOT NULL,
+    translation TEXT NOT NULL,
+    PRIMARY KEY (example_sentence_id, locale)
+);
+
+CREATE TABLE VerbCollocation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vocabulary_id INTEGER NOT NULL,
+    collocation TEXT NOT NULL,
+    meaning TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_collocation_vocab ON VerbCollocation(vocabulary_id);
+
+CREATE TABLE AudioAsset (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vocabulary_id INTEGER NOT NULL,
+    storage_key TEXT NOT NULL,
+    lang TEXT NOT NULL DEFAULT 'ja',
+    filename TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_audio_vocab ON AudioAsset(vocabulary_id);
+
+CREATE TABLE Deck (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    jlpt_level TEXT,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    is_published INTEGER NOT NULL DEFAULT 0,
+    created_by TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    jft_basic INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_deck_published ON Deck(is_published);
+CREATE INDEX idx_deck_jlpt ON Deck(jlpt_level);
+CREATE INDEX idx_deck_order ON Deck(order_index);
+
+CREATE TABLE DeckVocabulary (
+    deck_id INTEGER NOT NULL,
+    vocabulary_id INTEGER NOT NULL,
+    order_in_deck INTEGER,
+    PRIMARY KEY (deck_id, vocabulary_id)
+);
+
+CREATE INDEX idx_deck_vocab_deck ON DeckVocabulary(deck_id);
+CREATE INDEX idx_deck_vocab_vocab ON DeckVocabulary(vocabulary_id);
+
+selectById:
+SELECT * FROM Vocabulary WHERE id = :id;
+
+observeById:
+SELECT * FROM Vocabulary WHERE id = :id;
+
+deleteById:
+DELETE FROM Vocabulary WHERE id = :id;
+
+selectByIds:
+SELECT * FROM Vocabulary WHERE id IN :ids;
+
+searchByKanjiOrHiragana:
+SELECT *
+FROM Vocabulary
+WHERE kanji LIKE :query OR hiragana LIKE :query
+ORDER BY hiragana
+LIMIT :limit;
+
+selectAll:
+SELECT *
+FROM Vocabulary
+ORDER BY id
+LIMIT :limit OFFSET :offset;
+
+insert:
+INSERT OR REPLACE INTO Vocabulary VALUES ?;

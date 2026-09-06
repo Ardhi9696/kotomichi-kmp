@@ -12,11 +12,12 @@ import com.kotomichi.usecase.SyncDataUseCase
 import org.koin.core.module.Module
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import org.koin.core.property.inject
+import org.koin.dsl.module
+import org.koin.mp.KoinPlatformTools
 
 val sharedModule = module {
-    single { FsrsCalculator() }
-    single { BktCalculator() }
+    single { FsrsCalculator }
+    single { BktCalculator }
     
     factory { (vocabRepo: com.kotomichi.repository.VocabRepository, progressRepo: com.kotomichi.repository.ProgressRepository, deckRepo: com.kotomichi.repository.DeckRepository) ->
         LearnCardUseCase(vocabRepo, progressRepo, deckRepo)
@@ -55,4 +56,4 @@ fun stopKoinShared() {
     stopKoin()
 }
 
-inline fun <reified T> get(): T = org.koin.core.koin.get()
+inline fun <reified T : Any> get(): T = KoinPlatformTools.defaultContext().get().get<T>()

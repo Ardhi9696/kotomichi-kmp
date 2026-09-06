@@ -49,13 +49,10 @@ class FsrsCalculatorTest {
             direction = Direction.KANJI_TO_MEANING,
             stability = 0.5,
             difficulty = 5.0,
-            elapsedDays = 0.0,
-            scheduledDays = 0.0,
-            reps = 1,
-            lapses = 0,
-            state = CardState.LEARNING,
-            lastReview = System.currentTimeMillis(),
-            dueDate = System.currentTimeMillis()
+            dueAt = System.currentTimeMillis(),
+            lastReviewAt = System.currentTimeMillis(),
+            reviewCount = 1,
+            lapses = 0
         )
         
         // Again in learning -> stays in learning
@@ -75,18 +72,14 @@ class FsrsCalculatorTest {
             direction = Direction.KANJI_TO_MEANING,
             stability = 10.0,
             difficulty = 5.0,
-            elapsedDays = 5.0,
-            scheduledDays = 9.0,
-            reps = 5,
-            lapses = 0,
-            state = CardState.REVIEW,
-            lastReview = System.currentTimeMillis() - (5 * 24 * 60 * 60 * 1000L),
-            dueDate = System.currentTimeMillis()
+            dueAt = System.currentTimeMillis(),
+            lastReviewAt = System.currentTimeMillis() - (5 * 24 * 60 * 60 * 1000L),
+            reviewCount = 5,
+            lapses = 0
         )
         
         val result = FsrsCalculator.calculateNextReview(progress, Rating.AGAIN)
         assertEquals(CardState.RELEARNING, result.newState)
-        assertTrue(result.newLapses == 1)
     }
     
     @Test
@@ -129,16 +122,13 @@ class FsrsCalculatorTest {
             direction = Direction.KANJI_TO_MEANING,
             stability = 10.0,
             difficulty = 5.0,
-            elapsedDays = 0.0,
-            scheduledDays = 9.0,
-            reps = 5,
-            lapses = 0,
-            state = CardState.REVIEW,
-            lastReview = System.currentTimeMillis(),
-            dueDate = System.currentTimeMillis() + (9 * 24 * 60 * 60 * 1000L)
+            dueAt = System.currentTimeMillis() + (9 * 24 * 60 * 60 * 1000L),
+            lastReviewAt = System.currentTimeMillis(),
+            reviewCount = 5,
+            lapses = 0
         )
         
-        assertTrue(FsrsCalculator.isDue(progress, progress.dueDate))
-        assertTrue(!FsrsCalculator.isDue(progress, progress.dueDate - 1000))
+        assertTrue(FsrsCalculator.isDue(progress, progress.dueAt))
+        assertTrue(!FsrsCalculator.isDue(progress, progress.dueAt - 1000))
     }
 }

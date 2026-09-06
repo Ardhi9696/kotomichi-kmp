@@ -1,0 +1,189 @@
+CREATE TABLE UserProfile (
+    id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL DEFAULT '',
+    role TEXT NOT NULL DEFAULT 'user',
+    preferred_locale TEXT NOT NULL DEFAULT 'en',
+    level INTEGER NOT NULL DEFAULT 1,
+    exp INTEGER NOT NULL DEFAULT 0,
+    last_review_date INTEGER,
+    current_streak INTEGER NOT NULL DEFAULT 0,
+    longest_streak INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    theme TEXT NOT NULL DEFAULT 'system',
+    last_seen_at INTEGER
+);
+
+CREATE INDEX idx_user_role ON UserProfile(role);
+
+CREATE TABLE SrsProgress (
+    user_id TEXT NOT NULL,
+    vocabulary_id INTEGER NOT NULL,
+    direction INTEGER NOT NULL,
+    stability REAL NOT NULL DEFAULT 0,
+    difficulty REAL NOT NULL DEFAULT 0,
+    retrievability REAL,
+    due_at INTEGER NOT NULL,
+    last_review_at INTEGER,
+    review_count INTEGER NOT NULL DEFAULT 0,
+    lapses INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, vocabulary_id, direction)
+);
+
+CREATE INDEX idx_srs_user ON SrsProgress(user_id);
+CREATE INDEX idx_srs_due_at ON SrsProgress(due_at);
+CREATE INDEX idx_srs_vocab ON SrsProgress(vocabulary_id);
+CREATE INDEX idx_srs_user_due ON SrsProgress(user_id, due_at);
+
+CREATE TABLE ReviewLog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    vocabulary_id INTEGER NOT NULL,
+    direction INTEGER NOT NULL,
+    is_new INTEGER NOT NULL DEFAULT 0,
+    correctness INTEGER NOT NULL,
+    elapsed_ms INTEGER NOT NULL,
+    rating INTEGER NOT NULL,
+    stability_before REAL,
+    stability_after REAL,
+    difficulty_before REAL,
+    difficulty_after REAL,
+    retrievability_before REAL,
+    reviewed_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_review_user ON ReviewLog(user_id);
+CREATE INDEX idx_review_vocab ON ReviewLog(vocabulary_id);
+CREATE INDEX idx_review_reviewed ON ReviewLog(reviewed_at);
+
+CREATE TABLE DirectionThreshold (
+    direction INTEGER PRIMARY KEY,
+    fast_threshold_ms INTEGER NOT NULL DEFAULT 8000,
+    good_threshold_ms INTEGER NOT NULL DEFAULT 15000,
+    updated_by TEXT,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE AppConfig (
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL,
+    description TEXT,
+    updated_by TEXT,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE GrammarSkill (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pattern TEXT NOT NULL UNIQUE,
+    pattern_transcription TEXT NOT NULL,
+    explanation TEXT,
+    jlpt_level TEXT,
+    created_by TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE GrammarAttempt (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    skill_id INTEGER NOT NULL,
+    question_variant TEXT NOT NULL,
+    correct INTEGER NOT NULL,
+    elapsed_ms INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_grammar_attempt_user ON GrammarAttempt(user_id);
+
+CREATE TABLE GrammarSkillState (
+    user_id TEXT NOT NULL,
+    skill_id INTEGER NOT NULL,
+    p_learn REAL NOT NULL DEFAULT 0.1,
+    p_transition REAL NOT NULL DEFAULT 0.05,
+    p_guess REAL NOT NULL DEFAULT 0.3,
+    p_slip REAL NOT NULL DEFAULT 0.1,
+    p_mastered REAL NOT NULL DEFAULT 0.05,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, skill_id)
+);
+
+CREATE TABLE RoleChangeLog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    by_user_id TEXT NOT NULL,
+    from_role TEXT NOT NULL,
+    to_role TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE QuizSession (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    deck_id INTEGER NOT NULL,
+    mode TEXT NOT NULL,
+    session_index INTEGER NOT NULL,
+    total_sessions INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'in_progress',
+    started_at INTEGER NOT NULL,
+    completed_at INTEGER,
+    synced_at INTEGER,
+    total_questions INTEGER NOT NULL DEFAULT 0,
+    correct_count INTEGER NOT NULL DEFAULT 0,
+    total_exp INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_quiz_session_user ON QuizSession(user_id);
+
+CREATE TABLE QuizAnswer (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    vocabulary_id INTEGER NOT NULL,
+    direction INTEGER NOT NULL,
+    elapsed_ms INTEGER NOT NULL,
+    correct INTEGER NOT NULL,
+    answer_text TEXT,
+    speed_category TEXT,
+    exp_gained INTEGER NOT NULL DEFAULT 0,
+    submitted_at INTEGER NOT NULL,
+    synced INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_quiz_answer_session ON QuizAnswer(session_id);
+
+CREATE TABLE QuizSessionVocabDetail (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    vocabulary_id INTEGER NOT NULL,
+    dir1_elapsed_ms INTEGER,
+    dir1_correct INTEGER,
+    dir1_speed TEXT,
+    dir1_exp INTEGER NOT NULL DEFAULT 0,
+    dir2_elapsed_ms INTEGER,
+    dir2_correct INTEGER,
+    dir2_speed TEXT,
+    dir2_exp INTEGER NOT NULL DEFAULT 0,
+    dir3_elapsed_ms INTEGER,
+    dir3_correct INTEGER,
+    dir3_speed TEXT,
+    dir3_exp INTEGER NOT NULL DEFAULT 0,
+    dir4_elapsed_ms INTEGER,
+    dir4_correct INTEGER,
+    dir4_speed TEXT,
+    dir4_exp INTEGER NOT NULL DEFAULT 0,
+    dir5_elapsed_ms INTEGER,
+    dir5_correct INTEGER,
+    dir5_speed TEXT,
+    dir5_exp INTEGER NOT NULL DEFAULT 0,
+    dir6_elapsed_ms INTEGER,
+    dir6_correct INTEGER,
+    dir6_speed TEXT,
+    dir6_exp INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_quiz_detail_session ON QuizSessionVocabDetail(session_id);

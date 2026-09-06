@@ -4,158 +4,182 @@ import com.kotomichi.db.KotomichiDatabase
 import com.kotomichi.db.SrsProgress
 import com.kotomichi.db.ReviewLog
 import com.kotomichi.db.UserProfile
-import com.kotomichi.db.AuthTokens
-import com.kotomichi.db.DirectionThresholds
-import com.kotomichi.db.SystemConfig
-import com.kotomichi.db.DailyStats
-import com.kotomichi.db.SyncMetadata
 import com.kotomichi.model.SrsProgress as ModelSrsProgress
 import com.kotomichi.model.ReviewLog as ModelReviewLog
 import com.kotomichi.model.UserProfile as ModelUserProfile
-import com.kotomichi.model.AuthTokens as ModelAuthTokens
-import com.kotomichi.model.DirectionThresholds as ModelDirectionThresholds
-import com.kotomichi.model.SystemConfig as ModelSystemConfig
 import com.kotomichi.model.DailyStats as ModelDailyStats
 import com.kotomichi.model.Direction
 import com.kotomichi.model.CardState
 import com.kotomichi.model.Rating
-import com.kotomichi.model.SyncStatus
 import com.kotomichi.model.DeckProgress
 import com.kotomichi.model.UserStatistics
 import com.kotomichi.model.HeatmapData
+import com.kotomichi.model.DirectionStats
+import app.cash.sqldelight.coroutines.asFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.max
 
 class ProgressRepositoryImpl(
     private val database: KotomichiDatabase
 ) : ProgressRepository {
-    
+
     private val srsQueries = database.srsProgressQueries
     private val reviewQueries = database.reviewLogQueries
     private val userQueries = database.userProfileQueries
-    private val thresholdQueries = database.directionThresholdsQueries
-    private val configQueries = database.systemConfigQueries
-    private val dailyStatsQueries = database.dailyStatsQueries
-    private val syncQueries = database.syncMetadataQueries
-    
+
     private val _dueCount = MutableStateFlow(0)
     val dueCountFlow: Flow<Int> = _dueCount
-    
+
     private val _deckProgressFlow = MutableStateFlow<Map<Long, DeckProgress>>(emptyMap())
     val deckProgressFlow: Flow<Map<Long, DeckProgress>> = _deckProgressFlow
-    
+
     override suspend fun getProgress(userId: String, vocabularyId: Long, direction: Direction): ModelSrsProgress? = withContext(Dispatchers.IO) {
-        srsQueries.selectByUserAndVocabAndDirection(userId, vocabularyId, direction.ordinal)?.toModel()
+        srsQueries.selectByUserAndVocabAndDirection(userId, vocabularyId, direction.ordinal.toLong()).executeAsOneOrNull()?.toModel()
     }
-    
+
     override suspend fun getAllProgress(userId: String): List<ModelSrsProgress> = withContext(Dispatchers.IO) {
-        srsQueries.selectByUser(userId).map { it.toModel() }
+        srsQueries.selectByUser(userId).executeAsList().map { it.toModel() }
     }
-    
+
     override suspend fun getDueCards(userId: String, limit: Int): List<ModelSrsProgress> = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        srsQueries.selectDueCards(userId, now, limit).map { it.toModel() }
+        srsQueries.selectDueCards(userId, now, limit.toLong()).executeAsList().map { it.toModel() }
     }
-    
+
     override suspend fun getNewCards(userId: String, deckId: Long, limit: Int): List<ModelSrsProgress> = withContext(Dispatchers.IO) {
-        srsQueries.selectNewCards(userId, deckId, limit).map { it.toModel() }
+        srsQueries.selectNewCardsForDeck(userId, deckId, limit.toLong()).executeAsList().map { it.toModel() }
     }
-    
+
     override suspend fun getLearnedVocabIds(userId: String): Set<Long> = withContext(Dispatchers.IO) {
-        srsQueries.selectLearnedVocabIds(userId).toSet()
+        srsQueries.selectLearnedVocabIds(userId).executeAsList().toSet()
     }
-    
+
     override suspend fun getProgressByDeck(userId: String, deckId: Long): List<ModelSrsProgress> = withContext(Dispatchers.IO) {
-        srsQueries.selectByDeck(userId, deckId).map { it.toModel() }
+        srsQueries.selectByDeck(userId, deckId).executeAsList().map { it.toModel() }
     }
-    
+
     override suspend fun insertProgress(progress: ModelSrsProgress) = withContext(Dispatchers.IO) {
         srsQueries.insert(progress.toEntity())
     }
-    
+
     override suspend fun updateProgress(progress: ModelSrsProgress) = withContext(Dispatchers.IO) {
-        srsQueries.update(progress.toEntity())
-    }
-    
-    override suspend fun upsertProgress(progress: ModelSrsProgress) = withContext(Dispatchers.IO) {
-        srsQueries.upsert(progress.toEntity())
-    }
-    
-    override suspend fun deleteProgress(userId: String, vocabularyId: Long, direction: Direction) = withContext(Dispatchers.IO) {
-        srsQueries.delete(userId, vocabularyId, direction.ordinal)
-    }
-    
-    override suspend fun insertReviewLog(log: ModelReviewLog) = withContext(Dispatchers.IO) {
-        reviewQueries.insertAndReturnId(
-            userId = log.userId,
-            vocabularyId = log.vocabularyId,
-            direction = log.direction.ordinal,
-            rating = log.rating.ordinal,
-            responseTimeMs = log.responseTimeMs,
-            stabilityBefore = log.stabilityBefore,
-            difficultyBefore = log.difficultyBefore,
-            stabilityAfter = log.stabilityAfter,
-            difficultyAfter = log.difficultyAfter,
-            reviewedAt = log.reviewedAt,
-            syncStatus = log.syncStatus.value
+        srsQueries.upsert(
+            user_id = progress.userId,
+            vocabulary_id = progress.vocabularyId,
+            direction = progress.direction.ordinal.toLong(),
+            stability = progress.stability,
+            difficulty = progress.difficulty,
+            retrievability = progress.retrievability,
+            due_at = progress.dueAt,
+            last_review_at = progress.lastReviewAt,
+            review_count = progress.reviewCount.toLong(),
+            lapses = progress.lapses.toLong(),
+            created_at = progress.createdAt,
+            updated_at = System.currentTimeMillis()
         )
     }
-    
+
+    override suspend fun upsertProgress(progress: ModelSrsProgress) = withContext(Dispatchers.IO) {
+        srsQueries.upsert(
+            user_id = progress.userId,
+            vocabulary_id = progress.vocabularyId,
+            direction = progress.direction.ordinal.toLong(),
+            stability = progress.stability,
+            difficulty = progress.difficulty,
+            retrievability = progress.retrievability,
+            due_at = progress.dueAt,
+            last_review_at = progress.lastReviewAt,
+            review_count = progress.reviewCount.toLong(),
+            lapses = progress.lapses.toLong(),
+            created_at = progress.createdAt,
+            updated_at = System.currentTimeMillis()
+        )
+    }
+
+    override suspend fun deleteProgress(userId: String, vocabularyId: Long, direction: Direction) = withContext(Dispatchers.IO) {
+        srsQueries.delete(userId, vocabularyId, direction.ordinal.toLong())
+    }
+
+    override suspend fun insertReviewLog(log: ModelReviewLog) {
+        withContext(Dispatchers.IO) {
+            reviewQueries.insertAndReturnId(
+                user_id = log.userId,
+                vocabulary_id = log.vocabularyId,
+                direction = log.direction.ordinal.toLong(),
+                is_new = if (log.isNew) 1L else 0L,
+                correctness = if (log.correctness) 1L else 0L,
+                elapsed_ms = log.elapsedMs,
+                rating = log.rating.ordinal.toLong(),
+                stability_before = log.stabilityBefore,
+                stability_after = log.stabilityAfter,
+                difficulty_before = log.difficultyBefore,
+                difficulty_after = log.difficultyAfter,
+                retrievability_before = log.retrievabilityBefore,
+                reviewed_at = log.reviewedAt
+            ).executeAsOne()
+        }
+    }
+
     override suspend fun getReviewLogs(userId: String, limit: Int, offset: Int): List<ModelReviewLog> = withContext(Dispatchers.IO) {
-        reviewQueries.selectByUser(userId, limit, offset).map { it.toModel() }
+        reviewQueries.selectByUser(userId, limit.toLong(), offset.toLong()).executeAsList().map { it.toModel() }
     }
-    
+
     override suspend fun getReviewLogsByVocab(userId: String, vocabularyId: Long): List<ModelReviewLog> = withContext(Dispatchers.IO) {
-        reviewQueries.selectByUserAndVocab(userId, vocabularyId).map { it.toModel() }
+        reviewQueries.selectByUserAndVocab(userId, vocabularyId).executeAsList().map { it.toModel() }
     }
-    
-    override suspend fun getUnsyncedReviewLogs(userId: String): List<ModelReviewLog> = withContext(Dispatchers.IO) {
-        reviewQueries.selectUnsynced(userId).map { it.toModel() }
-    }
-    
-    override suspend fun markReviewLogsSynced(logIds: List<Long>) = withContext(Dispatchers.IO) {
-        reviewQueries.updateSyncStatus(logIds, SyncStatus.SYNCED.value)
-    }
-    
+
     override suspend fun getDeckProgress(userId: String, deckId: Long): DeckProgress = withContext(Dispatchers.IO) {
-        val progressList = srsQueries.selectByDeck(userId, deckId).map { it.toModel() }
+        val progressList = srsQueries.selectByDeck(userId, deckId).executeAsList().map { it.toModel() }
         calculateDeckProgress(progressList)
     }
-    
+
     override suspend fun getDailyStats(userId: String, days: Int): List<ModelDailyStats> = withContext(Dispatchers.IO) {
         val endDate = System.currentTimeMillis()
         val startDate = endDate - (days * 24 * 60 * 60 * 1000L)
-        dailyStatsQueries.selectByUser(userId, startDate, endDate).map { it.toModel() }
+        reviewQueries.selectByUser(userId, Int.MAX_VALUE.toLong(), 0L)
+            .executeAsList()
+            .map { it.toModel() }
+            .filter { it.reviewedAt in startDate..endDate }
+            .groupBy { startOfDay(it.reviewedAt) }
+            .map { (day, logs) ->
+                ModelDailyStats(
+                    date = day,
+                    learnCount = logs.count { it.isNew },
+                    reviewCount = logs.size,
+                    correctCount = logs.count { it.correctness },
+                    totalTimeMs = logs.sumOf { it.elapsedMs },
+                    expEarned = 0
+                )
+            }
+            .sortedBy { it.date }
     }
-    
+
     override suspend fun getUserStatistics(userId: String): UserStatistics = withContext(Dispatchers.IO) {
-        val allProgress = srsQueries.selectByUser(userId).map { it.toModel() }
-        val allLogs = reviewQueries.selectByUser(userId, Int.MAX_VALUE, 0).map { it.toModel() }
-        
+        val allProgress = srsQueries.selectByUser(userId).executeAsList().map { it.toModel() }
+        val allLogs = reviewQueries.selectByUser(userId, Int.MAX_VALUE.toLong(), 0L).executeAsList().map { it.toModel() }
+
         val totalReviews = allLogs.size
-        val totalCorrect = allLogs.count { it.rating != Rating.AGAIN }
-        val totalStudyTime = allLogs.sumOf { it.responseTimeMs }
+        val totalCorrect = allLogs.count { it.correctness }
+        val totalStudyTime = allLogs.sumOf { it.elapsedMs }
         val directionBreakdown = Direction.values().associateWith { direction ->
             val dirLogs = allLogs.filter { it.direction == direction }
             val dirProgress = allProgress.filter { it.direction == direction }
             DirectionStats(
                 totalReviews = dirLogs.size,
-                correctReviews = dirLogs.count { it.rating != Rating.AGAIN },
-                averageResponseTimeMs = if (dirLogs.isNotEmpty()) dirLogs.averageOf { it.responseTimeMs.toDouble() }.toLong() else 0,
-                averageStability = if (dirProgress.isNotEmpty()) dirProgress.averageOf { it.stability } else 0.0,
+                correctReviews = dirLogs.count { it.correctness },
+                averageResponseTimeMs = if (dirLogs.isNotEmpty()) dirLogs.sumOf { it.elapsedMs } / dirLogs.size else 0,
+                averageStability = if (dirProgress.isNotEmpty()) dirProgress.sumOf { it.stability } / dirProgress.size else 0.0,
                 cardsInReview = dirProgress.count { it.state == CardState.REVIEW }
             )
         }
-        
-        val profile = userQueries.selectById(userId)?.toModel()
-        
+
+        val profile = userQueries.selectById(userId).executeAsOneOrNull()?.toModel()
+
         UserStatistics(
             totalVocabLearned = allProgress.count { it.state != CardState.NEW },
             totalReviews = totalReviews,
@@ -169,36 +193,49 @@ class ProgressRepositoryImpl(
             directionBreakdown = directionBreakdown
         )
     }
-    
+
     override suspend fun getHeatmapData(userId: String, days: Int): List<HeatmapData> = withContext(Dispatchers.IO) {
         val stats = getDailyStats(userId, days)
         stats.map { HeatmapData(it.date, it.totalCount) }
     }
-    
+
     override fun observeDueCount(userId: String): Flow<Int> {
         return srsQueries.observeDueCount(userId, System.currentTimeMillis())
-            .map { it.toInt() }
+            .asFlow()
+            .map { it.executeAsOne().toInt() }
             .distinctUntilChanged()
     }
-    
+
     override fun observeDeckProgress(userId: String, deckId: Long): Flow<DeckProgress> {
         return srsQueries.observeByDeck(userId, deckId)
-            .map { list -> calculateDeckProgress(list.map { it.toModel() }) }
+            .asFlow()
+            .map { it.executeAsList().map { m -> m.toModel() } }
+            .map { list -> calculateDeckProgress(list) }
             .distinctUntilChanged()
     }
-    
+
+    private fun startOfDay(timestamp: Long): Long {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = timestamp
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
     private fun calculateDeckProgress(progressList: List<ModelSrsProgress>): DeckProgress {
         val totalVocab = progressList.size
         val learnedVocab = progressList.count { it.state != CardState.NEW }
         val reviewingVocab = progressList.count { it.state == CardState.REVIEW }
-        val masteredVocab = progressList.count { 
-            com.kotomichi.fsrs.FsrsCalculator.calculateRetrievability(it) >= 0.9 && it.state == CardState.REVIEW 
+        val masteredVocab = progressList.count {
+            com.kotomichi.fsrs.FsrsCalculator.calculateRetrievability(it) >= 0.9 && it.state == CardState.REVIEW
         }
         val averageRetrievability = if (progressList.isNotEmpty()) {
-            progressList.averageOf { com.kotomichi.fsrs.FsrsCalculator.calculateRetrievability(it) }
+            progressList.sumOf { com.kotomichi.fsrs.FsrsCalculator.calculateRetrievability(it) } / progressList.size
         } else 0.0
         val masteryPercent = if (totalVocab > 0) masteredVocab.toDouble() / totalVocab * 100 else 0.0
-        
+
         return DeckProgress(
             deckId = 0, // Will be set by caller
             totalVocab = totalVocab,
@@ -212,37 +249,31 @@ class ProgressRepositoryImpl(
 }
 
 private fun SrsProgress.toModel(): ModelSrsProgress = ModelSrsProgress(
-    id = id,
     userId = user_id,
     vocabularyId = vocabulary_id,
-    direction = Direction.values()[direction],
+    direction = Direction.values()[direction.toInt()],
     stability = stability,
     difficulty = difficulty,
-    elapsedDays = elapsed_days,
-    scheduledDays = scheduled_days,
-    reps = reps,
-    lapses = lapses,
-    state = CardState.values()[state],
-    lastReview = last_review,
-    dueDate = due_date,
+    retrievability = retrievability,
+    dueAt = due_at,
+    lastReviewAt = last_review_at,
+    reviewCount = review_count.toInt(),
+    lapses = lapses.toInt(),
     createdAt = created_at,
     updatedAt = updated_at
 )
 
 private fun ModelSrsProgress.toEntity(): SrsProgress = SrsProgress(
-    id = id,
     user_id = userId,
     vocabulary_id = vocabularyId,
-    direction = direction.ordinal,
+    direction = direction.ordinal.toLong(),
     stability = stability,
     difficulty = difficulty,
-    elapsed_days = elapsedDays,
-    scheduled_days = scheduledDays,
-    reps = reps,
-    lapses = lapses,
-    state = state.ordinal,
-    last_review = lastReview,
-    due_date = dueDate,
+    retrievability = retrievability,
+    due_at = dueAt,
+    last_review_at = lastReviewAt,
+    review_count = reviewCount.toLong(),
+    lapses = lapses.toLong(),
     created_at = createdAt,
     updated_at = System.currentTimeMillis()
 )
@@ -251,65 +282,48 @@ private fun ReviewLog.toModel(): ModelReviewLog = ModelReviewLog(
     id = id,
     userId = user_id,
     vocabularyId = vocabulary_id,
-    direction = Direction.values()[direction],
-    rating = Rating.values()[rating],
-    responseTimeMs = response_time_ms,
+    direction = Direction.values()[direction.toInt()],
+    isNew = is_new == 1L,
+    correctness = correctness == 1L,
+    elapsedMs = elapsed_ms,
+    rating = Rating.values()[rating.toInt()],
     stabilityBefore = stability_before,
-    difficultyBefore = difficulty_before,
     stabilityAfter = stability_after,
+    difficultyBefore = difficulty_before,
     difficultyAfter = difficulty_after,
-    reviewedAt = reviewed_at,
-    syncStatus = SyncStatus.fromValue(sync_status)
-)
-
-private fun ModelReviewLog.toEntity(): ReviewLog = ReviewLog(
-    id = id,
-    user_id = userId,
-    vocabulary_id = vocabularyId,
-    direction = direction.ordinal,
-    rating = rating.ordinal,
-    response_time_ms = responseTimeMs,
-    stability_before = stabilityBefore,
-    difficulty_before = difficultyBefore,
-    stability_after = stabilityAfter,
-    difficulty_after = difficultyAfter,
-    reviewed_at = reviewedAt,
-    sync_status = syncStatus.value
+    retrievabilityBefore = retrievability_before,
+    reviewedAt = reviewed_at
 )
 
 private fun UserProfile.toModel(): ModelUserProfile = ModelUserProfile(
     id = id,
-    email = email,
-    name = name,
+    displayName = display_name,
     role = com.kotomichi.model.UserRole.valueOf(role),
-    totalExp = total_exp,
-    currentLevel = current_level,
-    currentStreak = current_streak,
-    longestStreak = longest_streak,
-    lastActiveDate = last_active_date,
+    preferredLocale = preferred_locale,
+    level = level.toInt(),
+    exp = exp.toInt(),
+    lastReviewDate = last_review_date,
+    currentStreak = current_streak.toInt(),
+    longestStreak = longest_streak.toInt(),
     createdAt = created_at,
-    updatedAt = updated_at
+    updatedAt = updated_at,
+    theme = theme,
+    lastSeenAt = last_seen_at
 )
 
-private fun ModelUserProfile.toEntity(): UserProfile = UserProfile(
+// Keep the mapper available for callers that read profile locally.
+fun ModelUserProfile.toEntity(): UserProfile = UserProfile(
     id = id,
-    email = email,
-    name = name,
+    display_name = displayName,
     role = role.name,
-    total_exp = totalExp,
-    current_level = currentLevel,
-    current_streak = currentStreak,
-    longest_streak = longestStreak,
-    last_active_date = lastActiveDate,
+    preferred_locale = preferredLocale,
+    level = level.toLong(),
+    exp = exp.toLong(),
+    last_review_date = lastReviewDate,
+    current_streak = currentStreak.toLong(),
+    longest_streak = longestStreak.toLong(),
     created_at = createdAt,
-    updated_at = System.currentTimeMillis()
-)
-
-private fun DailyStats.toModel(): ModelDailyStats = ModelDailyStats(
-    date = date,
-    learnCount = learn_count,
-    reviewCount = review_count,
-    correctCount = correct_count,
-    totalTimeMs = total_time_ms,
-    expEarned = exp_earned
+    updated_at = updatedAt,
+    theme = theme,
+    last_seen_at = lastSeenAt
 )

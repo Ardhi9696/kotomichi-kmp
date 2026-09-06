@@ -1,5 +1,6 @@
 package com.kotomichi.ui.learn
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,8 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,33 +28,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kotomichi.app.R
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kotomichi.di.get
 import com.kotomichi.model.Direction
 import com.kotomichi.model.Rating
 import com.kotomichi.model.Vocabulary
 import com.kotomichi.usecase.LearnCardUseCase
-import kotlinx.coroutines.flow.collectAsStateWithLifecycle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material.icons.defaults.VolumeUp
-import androidx.compose.material.icons.defaults.Check
-import androidx.compose.material.icons.defaults.Close
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,8 +52,9 @@ fun LearnScreen(
     deckId: Long,
     onComplete: () -> Unit
 ) {
-    val learnUseCase: LearnCardUseCase = viewModel()
-    
+    val learnUseCase: LearnCardUseCase = get()
+    val scope = rememberCoroutineScope()
+
     var currentCard by remember { mutableStateOf<Vocabulary?>(null) }
     var currentDirection by remember { mutableStateOf(Direction.KANJI_TO_MEANING) }
     var showAnswer by remember { mutableStateOf(false) }
@@ -69,25 +64,52 @@ fun LearnScreen(
     var showDirectionUnlocked by remember { mutableStateOf(false) }
     var unlockedDirection by remember { mutableStateOf<Direction?>(null) }
     var startTime by remember { mutableStateOf(System.currentTimeMillis()) }
-    
-    // Load first card
-    androidx.lifecycle.lifecycleScope.launch {
+
+    suspend fun loadNextCard() {
+        showAnswer = false
+        startTime = System.currentTimeMillis()
         val card = learnUseCase.getNextNewCard("user_id", deckId)
         currentCard = card
         if (card != null) {
             unlockedDirections = learnUseCase.getUnlockedDirections("user_id", card.id)
-            currentDirection = unlockedDirections.first()
+            currentDirection = unlockedDirections.firstOrNull() ?: Direction.KANJI_TO_MEANING
         }
         isLoading = false
     }
-    
+
+    suspend fun handleAnswer(card: Vocabulary, direction: Direction, rating: Rating, responseTime: Long) {
+        learnUseCase.submitLearnAnswer("user_id", card.id, direction, rating, responseTime)
+
+        val shouldUnlock = learnUseCase.checkDirectionUnlock("user_id", card.id, direction)
+        if (shouldUnlock && direction != Direction.MEANING_TO_KANJI) {
+            val nextDir = Direction.values()[direction.ordinal + 1]
+            unlockedDirection = nextDir
+            showDirectionUnlocked = true
+            unlockedDirections = learnUseCase.getUnlockedDirections("user_id", card.id)
+        }
+
+        if (direction != Direction.MEANING_TO_KANJI && unlockedDirections.contains(Direction.values()[direction.ordinal + 1])) {
+            currentDirection = Direction.values()[direction.ordinal + 1]
+            showAnswer = false
+            startTime = System.currentTimeMillis()
+        } else {
+            cardsLearned++
+            loadNextCard()
+        }
+    }
+
+    // Load first card
+    scope.launch {
+        loadNextCard()
+    }
+
     val progress = cardsLearned / 20f // placeholder
-    
+
     if (isLoading) {
         LoadingScreen()
         return
     }
-    
+
     currentCard?.let { card ->
         LearnCardScreen(
             card = card,
@@ -96,15 +118,15 @@ fun LearnScreen(
             showAnswer = showAnswer,
             onShowAnswer = { showAnswer = true },
             onAnswer = { rating, responseTime ->
-                handleAnswer(card, currentDirection, rating, responseTime)
+                scope.launch { handleAnswer(card, currentDirection, rating, responseTime) }
             },
-            onNextCard = { loadNextCard() },
+            onNextCard = { scope.launch { loadNextCard() } },
             progress = progress,
             cardsLearned = cardsLearned,
             onComplete = onComplete
         )
     } ?: CompletionScreen(cardsLearned = cardsLearned, onComplete = onComplete)
-    
+
     if (showDirectionUnlocked) {
         unlockedDirection?.let { dir ->
             DirectionUnlockedDialog(
@@ -113,46 +135,9 @@ fun LearnScreen(
             )
         }
     }
-    
-    fun handleAnswer(card: Vocabulary, direction: Direction, rating: Rating, responseTime: Long) {
-        androidx.lifecycle.lifecycleScope.launch {
-            val progress = learnUseCase.submitLearnAnswer("user_id", card.id, direction, rating, responseTime)
-            
-            // Check if next direction unlocked
-            val shouldUnlock = learnUseCase.checkDirectionUnlock("user_id", card.id, direction)
-            if (shouldUnlock && direction != Direction.MEANING_TO_KANJI) {
-                val nextDir = Direction.values()[direction.ordinal + 1]
-                unlockedDirection = nextDir
-                showDirectionUnlocked = true
-                unlockedDirections = learnUseCase.getUnlockedDirections("user_id", card.id)
-            }
-            
-            // Move to next direction or next card
-            if (direction != Direction.MEANING_TO_KANJI && unlockedDirections.contains(Direction.values()[direction.ordinal + 1])) {
-                currentDirection = Direction.values()[direction.ordinal + 1]
-                showAnswer = false
-                startTime = System.currentTimeMillis()
-            } else {
-                cardsLearned++
-                loadNextCard()
-            }
-        }
-    }
-    
-    fun loadNextCard() {
-        showAnswer = false
-        startTime = System.currentTimeMillis()
-        androidx.lifecycle.lifecycleScope.launch {
-            val card = learnUseCase.getNextNewCard("user_id", deckId)
-            currentCard = card
-            if (card != null) {
-                unlockedDirections = learnUseCase.getUnlockedDirections("user_id", card.id)
-                currentDirection = unlockedDirections.first()
-            }
-        }
-    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LearnCardScreen(
     card: Vocabulary,
@@ -166,9 +151,8 @@ fun LearnCardScreen(
     cardsLearned: Int,
     onComplete: () -> Unit
 ) {
-    val responseTime = (System.currentTimeMillis() - startTime) / 1000f
     var startTime by remember { mutableStateOf(System.currentTimeMillis()) }
-    
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -184,7 +168,7 @@ fun LearnCardScreen(
                 navigationIcon = {
                     IconButton(onClick = onComplete) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.defaults.Close,
+                            imageVector = Icons.Filled.Close,
                             contentDescription = "Tutup"
                         )
                     }
@@ -196,7 +180,7 @@ fun LearnCardScreen(
             
             // Progress Bar
             LinearProgressIndicator(
-                progress = progress.coerceIn(0f, 1f),
+                progress = { progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().height(4.dp)
             )
             
@@ -245,7 +229,7 @@ fun LearnCardScreen(
                             
                             IconButton(onClick = { /* Play audio */ }) {
                                 Icon(
-                                    imageVector = VolumeUp,
+                                    imageVector = Icons.Filled.VolumeUp,
                                     contentDescription = "Dengarkan",
                                     tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
                                 )
@@ -258,7 +242,7 @@ fun LearnCardScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(24.dp)
                             ) {
-                                androidx.compose.foundation.layout.Divider(
+                                androidx.compose.material3.HorizontalDivider(
                                     modifier = Modifier.fillMaxWidth(),
                                     color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant
                                 )
@@ -383,7 +367,7 @@ fun RatingButtons(onRating: (Rating) -> Unit) {
 }
 
 @Composable
-fun RatingButton(
+internal fun androidx.compose.foundation.layout.RowScope.RatingButton(
     rating: Rating,
     label: String,
     color: Color,
@@ -411,7 +395,7 @@ fun CompletionScreen(cardsLearned: Int, onComplete: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                imageVector = androidx.compose.material.icons.defaults.CheckCircle,
+                imageVector = Icons.Filled.CheckCircle,
                 contentDescription = "",
                 tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(80.dp)
@@ -452,8 +436,8 @@ fun DirectionUnlockedDialog(
 
 fun getQuestionText(card: Vocabulary, direction: Direction): String {
     return when (direction) {
-        Direction.KANJI_TO_MEANING -> card.kanji
-        Direction.KANJI_TO_HIRAGANA -> card.kanji
+        Direction.KANJI_TO_MEANING -> card.kanji ?: card.hiragana
+        Direction.KANJI_TO_HIRAGANA -> card.kanji ?: card.hiragana
         Direction.HIRAGANA_TO_MEANING -> card.hiragana
         Direction.MEANING_TO_HIRAGANA -> card.meaningIndonesian
         Direction.HIRAGANA_TO_KANJI -> card.hiragana
@@ -473,9 +457,9 @@ fun getAnswerText(card: Vocabulary, direction: Direction): String {
     return when (direction) {
         Direction.KANJI_TO_MEANING -> "${card.meaningIndonesian} (${card.hiragana})"
         Direction.KANJI_TO_HIRAGANA -> card.hiragana
-        Direction.HIRAGANA_TO_MEANING -> "${card.meaningIndonesian} (${card.kanji})"
+        Direction.HIRAGANA_TO_MEANING -> "${card.meaningIndonesian} (${card.kanji ?: card.hiragana})"
         Direction.MEANING_TO_HIRAGANA -> card.hiragana
-        Direction.HIRAGANA_TO_KANJI -> card.kanji
-        Direction.MEANING_TO_KANJI -> card.kanji
+        Direction.HIRAGANA_TO_KANJI -> card.kanji ?: card.hiragana
+        Direction.MEANING_TO_KANJI -> card.kanji ?: card.hiragana
     }
 }

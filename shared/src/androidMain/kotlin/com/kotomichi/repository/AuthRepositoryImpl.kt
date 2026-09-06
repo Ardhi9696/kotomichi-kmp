@@ -1,8 +1,6 @@
 package com.kotomichi.repository
 
 import com.kotomichi.db.KotomichiDatabase
-import com.kotomichi.db.UserProfile
-import com.kotomichi.db.AuthTokens
 import com.kotomichi.model.UserProfile as ModelUserProfile
 import com.kotomichi.model.AuthTokens as ModelAuthTokens
 import com.kotomichi.model.LoginRequest
@@ -15,24 +13,21 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.auth.BearerToken
-import io.ktor.client.plugins.auth.HttpAuth
-import io.ktor.client.plugins.auth.providers.jwt.JwtProviderConfiguration
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
+import io.ktor.client.request.delete
+import io.ktor.http.contentType
+import io.ktor.client.request.setBody
+import io.ktor.client.request.header
+import io.ktor.client.call.body
 import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import android.util.Base64
 
 class AuthRepositoryImpl(
     private val database: KotomichiDatabase,
@@ -42,7 +37,6 @@ class AuthRepositoryImpl(
 ) : AuthRepository {
     
     private val userQueries = database.userProfileQueries
-    private val authQueries = database.authTokensQueries
     
     private val _currentUser = MutableStateFlow<ModelUserProfile?>(null)
     override val currentUser: Flow<ModelUserProfile?> = _currentUser.asStateFlow()
@@ -65,9 +59,9 @@ class AuthRepositoryImpl(
                 .build()
             
             val sharedPrefs = EncryptedSharedPreferences.create(
+                context,
                 "kotomichi_auth",
                 masterKey,
-                context,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
@@ -88,9 +82,9 @@ class AuthRepositoryImpl(
                 .build()
             
             val sharedPrefs = EncryptedSharedPreferences.create(
+                context,
                 "kotomichi_auth",
                 masterKey,
-                context,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
@@ -115,9 +109,9 @@ class AuthRepositoryImpl(
                 .build()
             
             val sharedPrefs = EncryptedSharedPreferences.create(
+                context,
                 "kotomichi_auth",
                 masterKey,
-                context,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
@@ -226,7 +220,7 @@ class AuthRepositoryImpl(
         if (response.status == HttpStatusCode.OK) {
             val updated = response.body<ModelUserProfile>()
             _currentUser.value = updated
-            userQueries.upsert(updated.toEntity())
+            persistUser(updated)
             updated
         } else {
             throw Exception("Profile update failed")
@@ -256,7 +250,7 @@ class AuthRepositoryImpl(
     }
     
     override fun observeCurrentUser(): Flow<ModelUserProfile?> {
-        return _currentUser.asStateFlow().distinctUntilChanged()
+        return _currentUser.asStateFlow()
     }
     
     private suspend fun fetchAndStoreUser() = withContext(Dispatchers.IO) {
@@ -267,21 +261,25 @@ class AuthRepositoryImpl(
         if (response.status == HttpStatusCode.OK) {
             val user = response.body<ModelUserProfile>()
             _currentUser.value = user
-            userQueries.upsert(user.toEntity())
+            persistUser(user)
         }
     }
-}
 
-private fun ModelUserProfile.toEntity(): UserProfile = UserProfile(
-    id = id,
-    email = email,
-    name = name,
-    role = role.name,
-    total_exp = totalExp,
-    current_level = currentLevel,
-    current_streak = currentStreak,
-    longest_streak = longestStreak,
-    last_active_date = lastActiveDate,
-    created_at = createdAt,
-    updated_at = System.currentTimeMillis()
-)
+    private fun persistUser(profile: ModelUserProfile) {
+        userQueries.upsert(
+            id = profile.id,
+            display_name = profile.displayName,
+            role = profile.role.name,
+            preferred_locale = profile.preferredLocale,
+            level = profile.level.toLong(),
+            exp = profile.exp.toLong(),
+            last_review_date = profile.lastReviewDate,
+            current_streak = profile.currentStreak.toLong(),
+            longest_streak = profile.longestStreak.toLong(),
+            created_at = profile.createdAt,
+            updated_at = System.currentTimeMillis(),
+            theme = profile.theme,
+            last_seen_at = profile.lastSeenAt
+        )
+    }
+}

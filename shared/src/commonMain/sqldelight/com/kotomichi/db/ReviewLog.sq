@@ -1,0 +1,17 @@
+selectByUser:
+SELECT *
+FROM ReviewLog
+WHERE user_id = :userId
+ORDER BY reviewed_at DESC
+LIMIT :limit OFFSET :offset;
+
+selectByUserAndVocab:
+SELECT *
+FROM ReviewLog
+WHERE user_id = :userId AND vocabulary_id = :vocabularyId
+ORDER BY reviewed_at DESC;
+
+insertAndReturnId:
+INSERT INTO ReviewLog (user_id, vocabulary_id, direction, is_new, correctness, elapsed_ms, rating, stability_before, stability_after, difficulty_before, difficulty_after, retrievability_before, reviewed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id;
