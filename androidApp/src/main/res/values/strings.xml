@@ -1,0 +1,89 @@
+<resources>
+    <string name="app_name">Kotomichi</string>
+    <string name="app_tagline">言道 - Jalan Kata</string>
+    
+    <!-- Auth -->
+    <string name="login">Masuk</string>
+    <string name="register">Daftar</string>
+    <string name="email">Email</string>
+    <string name="password">Kata Sandi</string>
+    <string name="name">Nama</string>
+    <string name="confirm_password">Konfirmasi Kata Sandi</string>
+    <string name="forgot_password">Lupa Kata Sandi?</string>
+    <string name="reset_password">Reset Kata Sandi</string>
+    <string name="no_account">Belum punya akun? </string>
+    <string name="has_account">Sudah punya akun? </string>
+    <string name="login_failed">Login gagal. Periksa email dan kata sandi.</string>
+    <string name="register_failed">Registrasi gagal. Coba lagi.</string>
+    <string name="password_mismatch">Kata sandi tidak cocok</string>
+    <string name="email_sent">Email reset kata sandi telah dikirim</string>
+    
+    <!-- Dashboard -->
+    <string name="dashboard">Dashboard</string>
+    <string name="learn">Belajar</string>
+    <string name="review">Review</string>
+    <string name="profile">Profil</string>
+    <string name="settings">Pengaturan</string>
+    <string name="logout">Keluar</string>
+    <string name="welcome_back">Selamat datang kembali, %s!</string>
+    <string name="level">Level %d</string>
+    <string name="exp_progress">%d / %d EXP</string>
+    <string name="streak_days">%d hari streak</string>
+    <string name="due_cards">%d kartu siap review</string>
+    <string name="no_due_cards">Tidak ada kartu review hari ini</string>
+    <string name="start_learning">Mulai Belajar</string>
+    <string name="start_review">Mulai Review</string>
+    <string name="decks_list">Daftar Bab</string>
+    <string name="mastery">Kuasai: %.0f%%</string>
+    <string name="activity_calendar">Kalender Aktivitas</string>
+    <string name="today">Hari ini</string>
+    
+    <!-- Learn -->
+    <string name="learn_new_cards">Kartu Baru</string>
+    <string name="direction_kanji_meaning">Kanji → Arti</string>
+    <string name="direction_kanji_hiragana">Kanji → Hiragana</string>
+    <string name="direction_hiragana_meaning">Hiragana → Arti</string>
+    <string name="direction_meaning_hiragana">Arti → Hiragana</string>
+    <string name="direction_hiragana_kanji">Hiragana → Kanji</string>
+    <string name="direction_meaning_kanji">Arti → Kanji</string>
+    <string name="show_answer">Tampilkan Jawaban</string>
+    <string name="answer_correct">Benar</string>
+    <string name="answer_wrong">Salah</string>
+    <string name="rating_again">Salah</string>
+    <string name="rating_hard">Sulit</string>
+    <string name="rating_good">Baik</string>
+    <string name="rating_easy">Mudah</string>
+    <string name="next_card">Kartu Berikutnya</string>
+    <string name="complete_learn">Selesai Belajar</string>
+    <string name="cards_learned">%d kartu dipelajari</string>
+    <string name="unlocked_new_direction">Arah baru terbuka: %s</string>
+    
+    <!-- Review -->
+    <string name="review_mode">Mode Review</string>
+    <string name="card_due">Kartu Due</string>
+    <string name="retrievability">Retrievability: %.0f%%</string>
+    <string name="time_taken">Waktu: %.1f detik</string>
+    
+    <!-- Common -->
+    <string name="loading">Memuat…</string>
+    <string name="error">Terjadi kesalahan</string>
+    <string name="retry">Coba Lagi</string>
+    <string name="cancel">Batal</string>
+    <string name="save">Simpan</string>
+    <string name="delete">Hapus</string>
+    <string name="edit">Edit</string>
+    <string name="close">Tutup</string>
+    <string name="offline_mode">Mode Offline</string>
+    <string name="syncing">Menyinkronkan…</string>
+    <string name="sync_complete">Sinkronisasi selesai</string>
+    <string name="sync_failed">Sinkronisasi gagal</string>
+    
+    <!-- Settings -->
+    <string name="account">Akun</string>
+    <string name="notifications">Notifikasi</string>
+    <string name="data_sync">Sinkronisasi Data</string>
+    <string name="about">Tentang</string>
+    <string name="version">Versi 2.0.0</string>
+    <string name="privacy_policy">Kebijakan Privasi</string>
+    <string name="terms_of_service">Syarat Layanan</string>
+</resources>

@@ -1,0 +1,108 @@
+package com.kotomichi.db
+
+extend Vocabulary {
+    fun selectByIds(ids: List<Long>): List<Vocabulary>
+    fun searchByKanjiOrHiragana(query: String, limit: Int): List<Vocabulary>
+    fun selectByDeck(deckId: Long): List<Vocabulary>
+    fun selectVocabIdsByDeck(deckId: Long): List<Long>
+}
+
+extend Deck {
+    fun selectPublished(): List<Deck>
+    fun selectByJlptLevel(level: String): List<Deck>
+    fun selectWithProgress(userId: String): List<DeckWithProgress>
+}
+
+DeckWithProgress(
+    deck: Deck,
+    totalVocab: Long,
+    learnedVocab: Long,
+    reviewingVocab: Long,
+    masteredVocab: Long,
+    averageRetrievability: Double,
+    masteryPercent: Double
+) {
+    fun selectByUser(userId: String): List<DeckWithProgress>
+}
+
+extend SrsProgress {
+    fun selectByUser(userId: String): List<SrsProgress>
+    fun selectDueCards(userId: String, now: Long, limit: Int): List<SrsProgress>
+    fun selectNewCards(userId: String, deckId: Long, limit: Int): List<SrsProgress>
+    fun selectByUserAndVocab(userId: String, vocabularyId: Long): List<SrsProgress>
+    fun selectByUserAndDirection(userId: String, direction: Int): List<SrsProgress>
+    fun selectLearnedVocabIds(userId: String): List<Long>
+    fun countDueCards(userId: String, now: Long): Long
+    fun selectByDeck(userId: String, deckId: Long): List<SrsProgress>
+}
+
+extend ReviewLog {
+    fun selectByUser(userId: String, limit: Int, offset: Int): List<ReviewLog>
+    fun selectByUserAndVocab(userId: String, vocabularyId: Long): List<ReviewLog>
+    fun selectUnsynced(userId: String): List<ReviewLog>
+    fun insertAndReturnId(
+        userId: String,
+        vocabularyId: Long,
+        direction: Int,
+        rating: Int,
+        responseTimeMs: Long,
+        stabilityBefore: Double,
+        difficultyBefore: Double,
+        stabilityAfter: Double,
+        difficultyAfter: Double,
+        reviewedAt: Long,
+        syncStatus: Int
+    ): Long
+    fun updateSyncStatus(ids: List<Long>, status: Int): Int
+}
+
+extend UserProfile {
+    fun selectById(id: String): UserProfile?
+    fun selectByEmail(email: String): UserProfile?
+    fun updateLastActiveDate(id: String, date: Long): Int
+    fun updateStreak(id: String, currentStreak: Int, longestStreak: Int): Int
+    fun updateExpAndLevel(id: String, totalExp: Long, currentLevel: Int): Int
+}
+
+extend AuthTokens {
+    fun selectByUserId(userId: String): AuthTokens?
+    fun upsert(
+        userId: String,
+        accessToken: String,
+        refreshToken: String,
+        expiresAt: Long,
+        tokenType: String
+    ): Long
+    fun deleteByUserId(userId: String): Int
+}
+
+extend DirectionThresholds {
+    fun selectAll(): List<DirectionThresholds>
+    fun selectByDirection(direction: Int): DirectionThresholds?
+    fun upsert(direction: Int, easyThresholdSec: Int, goodThresholdSec: Int, updatedAt: Long): Long
+}
+
+extend SystemConfig {
+    fun selectByKey(key: String): SystemConfig?
+    fun selectAll(): List<SystemConfig>
+    fun upsert(key: String, value: String, description: String?, updatedAt: Long): Long
+}
+
+extend DailyStats {
+    fun selectByUser(userId: String, startDate: Long, endDate: Long): List<DailyStats>
+    fun selectByUserAndDate(userId: String, date: Long): DailyStats?
+    fun upsert(
+        date: Long,
+        userId: String,
+        learnCount: Int,
+        reviewCount: Int,
+        correctCount: Int,
+        totalTimeMs: Long,
+        expEarned: Long
+    ): Long
+}
+
+extend SyncMetadata {
+    fun selectByKey(key: String): SyncMetadata?
+    fun upsert(key: String, value: String, updatedAt: Long): Long
+}

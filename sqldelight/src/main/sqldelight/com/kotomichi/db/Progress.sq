@@ -1,0 +1,105 @@
+package com.kotomichi.db
+
+import com.kotomichi.db.TypeConverters
+
+table SrsProgress {
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    vocabulary_id INTEGER NOT NULL,
+    direction INTEGER NOT NULL,
+    stability REAL NOT NULL,
+    difficulty REAL NOT NULL,
+    elapsed_days REAL NOT NULL,
+    scheduled_days REAL NOT NULL,
+    reps INTEGER NOT NULL,
+    lapses INTEGER NOT NULL,
+    state INTEGER NOT NULL,
+    last_review INTEGER NOT NULL,
+    due_date INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE (user_id, vocabulary_id, direction)
+}
+
+create index idx_srs_user on SrsProgress(user_id)
+create index idx_srs_due_date on SrsProgress(due_date)
+create index idx_srs_vocab on SrsProgress(vocabulary_id)
+create index idx_srs_user_state on SrsProgress(user_id, state)
+
+table ReviewLog {
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    vocabulary_id INTEGER NOT NULL,
+    direction INTEGER NOT NULL,
+    rating INTEGER NOT NULL,
+    response_time_ms INTEGER NOT NULL,
+    stability_before REAL NOT NULL,
+    difficulty_before REAL NOT NULL,
+    stability_after REAL NOT NULL,
+    difficulty_after REAL NOT NULL,
+    reviewed_at INTEGER NOT NULL,
+    sync_status INTEGER NOT NULL DEFAULT 0
+}
+
+create index idx_review_user on ReviewLog(user_id)
+create index idx_review_vocab on ReviewLog(vocabulary_id)
+create index idx_review_sync on ReviewLog(sync_status)
+create index idx_review_reviewed on ReviewLog(reviewed_at)
+
+table UserProfile {
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    total_exp INTEGER NOT NULL DEFAULT 0,
+    current_level INTEGER NOT NULL DEFAULT 1,
+    current_streak INTEGER NOT NULL DEFAULT 0,
+    longest_streak INTEGER NOT NULL DEFAULT 0,
+    last_active_date INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+}
+
+create index idx_user_email on UserProfile(email)
+
+table AuthTokens {
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL UNIQUE,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    token_type TEXT NOT NULL DEFAULT 'bearer'
+}
+
+table DirectionThresholds {
+    direction INTEGER PRIMARY KEY,
+    easy_threshold_sec INTEGER NOT NULL DEFAULT 8,
+    good_threshold_sec INTEGER NOT NULL DEFAULT 15,
+    updated_at INTEGER NOT NULL
+}
+
+table SystemConfig {
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    description TEXT,
+    updated_at INTEGER NOT NULL
+}
+
+table DailyStats {
+    date INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    learn_count INTEGER NOT NULL DEFAULT 0,
+    review_count INTEGER NOT NULL DEFAULT 0,
+    correct_count INTEGER NOT NULL DEFAULT 0,
+    total_time_ms INTEGER NOT NULL DEFAULT 0,
+    exp_earned INTEGER NOT NULL DEFAULT 0
+}
+
+create index idx_daily_user on DailyStats(user_id)
+create index idx_daily_date on DailyStats(date)
+
+table SyncMetadata {
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+}

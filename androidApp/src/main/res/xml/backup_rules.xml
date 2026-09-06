@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="database" path="kotomichi.db" />
+    <exclude domain="sharedpref" path="kotomichi_auth.xml" />
+    <include domain="file" path="audio_cache/" />
+</full-backup-content>
