@@ -53,6 +53,7 @@ import com.kotomichi.ui.theme.KotomichiSpacing
 import com.kotomichi.usecase.StatisticsUseCase
 import java.time.Instant
 import java.time.ZoneId
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -376,7 +377,10 @@ private fun rememberHomeHeatmap(userId: String?, refreshTrigger: Int): List<Heat
         }
         runCatching { statisticsUseCase.getHeatmapData(userId, 365) }
             .onSuccess { heatmap = it }
-            .onFailure { heatmap = emptyList() }
+            .onFailure {
+                Timber.w(it, "heatmap kosong setelah refresh: fetch gagal")
+                heatmap = emptyList()
+            }
     }
 
     return heatmap

@@ -15,6 +15,7 @@ import com.kotomichi.repository.SyncResult
 import com.kotomichi.usecase.DeckProgressUseCase
 import com.kotomichi.util.SyncTtlManager
 import kotlinx.coroutines.delay
+import timber.log.Timber
 
 private const val PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000L
 
@@ -64,7 +65,17 @@ class DeckCatalogState(
                 }
             }.ifBlank { null }
             if (success) SyncTtlManager.markSynced()
-            reloadLocal(error)
+            runCatching { reloadLocal(error) }
+                .onFailure { t ->
+                    Timber.e(t, "sync: reloadLocal gagal")
+                    catalog = catalog.copy(
+                        decks = emptyList(),
+                        deckProgressMap = emptyMap(),
+                        totalVocabulary = 0,
+                        isLoading = false,
+                        loadError = "Gagal memuat data lokal: ${t.message}"
+                    )
+                }
         } finally {
             catalog = catalog.copy(isSyncing = false)
             isSynchronizing = false
@@ -77,8 +88,14 @@ class DeckCatalogState(
             return
         }
         catalog = catalog.copy(isRefreshing = true)
-        sync(showSkeleton = false, force = true)
-        catalog = catalog.copy(isRefreshing = false)
+        try {
+            sync(showSkeleton = false, force = true)
+        } catch (t: Throwable) {
+            Timber.e(t, "refresh gagal")
+            catalog = catalog.copy(loadError = "Refresh gagal: ${t.message}")
+        } finally {
+            catalog = catalog.copy(isRefreshing = false)
+        }
     }
 
     fun showEmpty() {
@@ -86,10 +103,20 @@ class DeckCatalogState(
     }
 
     private suspend fun reloadLocal(error: String?) {
-        val decks = deckRepository.getPublishedDecks()
-        val progressMap = userId?.let {
-            deckProgressUseCase.getAllDeckProgress(it).associateBy { it.deckId }
-        } ?: emptyMap()
+        val decks = try {
+            deckRepository.getPublishedDecks()
+        } catch (t: Throwable) {
+            Timber.e(t, "reloadLocal: getPublishedDecks gagal")
+            throw t
+        }
+        val progressMap = try {
+            userId?.let {
+                deckProgressUseCase.getAllDeckProgress(it).associateBy { it.deckId }
+            } ?: emptyMap()
+        } catch (t: Throwable) {
+            Timber.e(t, "reloadLocal: getAllDeckProgress gagal")
+            throw t
+        }
         catalog = DeckCatalog(
             decks = decks,
             deckProgressMap = progressMap,

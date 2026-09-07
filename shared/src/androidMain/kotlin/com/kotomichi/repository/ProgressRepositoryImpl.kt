@@ -312,7 +312,7 @@ internal fun ReviewLog.toModel(): ModelReviewLog = ModelReviewLog(
 private fun UserProfile.toModel(): ModelUserProfile = ModelUserProfile(
     id = id,
     displayName = display_name,
-    role = com.kotomichi.model.UserRole.valueOf(role),
+    role = com.kotomichi.model.UserRole.entries.firstOrNull { it.name.equals(role, ignoreCase = true) } ?: com.kotomichi.model.UserRole.USER,
     preferredLocale = preferred_locale,
     level = level.toInt(),
     exp = exp.toInt(),
