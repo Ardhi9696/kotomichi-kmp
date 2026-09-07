@@ -9,6 +9,7 @@ import com.kotomichi.model.UserProfile
 import com.kotomichi.model.DirectionThresholds
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +45,9 @@ class SyncRepositoryImpl(
     private val _lastSyncTime = MutableStateFlow(0L)
     val lastSyncTime: Flow<Long> = _lastSyncTime.asStateFlow()
     
+    private val _lastSyncDiagnostics = MutableStateFlow("")
+    override val lastSyncDiagnostics: StateFlow<String> = _lastSyncDiagnostics.asStateFlow()
+    
     override suspend fun pullMasterData(): SyncResult = withContext(Dispatchers.IO) {
         _syncStatus.value = SyncStatus.SYNCING
         var totalSynced = 0
@@ -74,6 +78,7 @@ class SyncRepositoryImpl(
             _lastSyncTime.value = serverTimestamp
             configQueries.upsert("last_sync", serverTimestamp.toString(), null, null, serverTimestamp)            
             _syncStatus.value = if (totalFailed > 0) SyncStatus.FAILED else SyncStatus.SUCCESS
+            _lastSyncDiagnostics.value = if (totalFailed == 0) "Master data tersinkron" else "Master data sebagian gagal"
             
             SyncResult(
                 success = totalFailed == 0,
@@ -84,6 +89,7 @@ class SyncRepositoryImpl(
             )
         } catch (e: Exception) {
             _syncStatus.value = SyncStatus.FAILED
+            _lastSyncDiagnostics.value = "Master data gagal: ${e.message}"
             SyncResult(
                 success = false,
                 message = "Sinkronisasi gagal: ${e.message}",
@@ -175,6 +181,7 @@ class SyncRepositoryImpl(
             _lastSyncTime.value = start
             configQueries.upsert("last_sync", start.toString(), null, null, start)
             _syncStatus.value = if (totalFailed > 0) SyncStatus.FAILED else SyncStatus.SUCCESS
+            _lastSyncDiagnostics.value = if (totalFailed == 0) "Progress dimuat dari server" else "Sebagian data gagal dimuat"
 
             SyncResult(
                 success = totalFailed == 0,
@@ -185,6 +192,7 @@ class SyncRepositoryImpl(
             )
         } catch (e: Exception) {
             _syncStatus.value = SyncStatus.FAILED
+            _lastSyncDiagnostics.value = "Gagal memuat progress: ${e.message}"
             SyncResult(
                 success = false,
                 message = "Gagal memuat progress: ${e.message}",
@@ -215,6 +223,7 @@ class SyncRepositoryImpl(
             totalFailed += profileResult.itemsFailed
             
             _syncStatus.value = if (totalFailed > 0) SyncStatus.FAILED else SyncStatus.SUCCESS
+            _lastSyncDiagnostics.value = if (totalFailed == 0) "Data berhasil dikirim" else "Sebagian data gagal dikirim"
             
             SyncResult(
                 success = totalFailed == 0,
@@ -224,6 +233,7 @@ class SyncRepositoryImpl(
             )
         } catch (e: Exception) {
             _syncStatus.value = SyncStatus.FAILED
+            _lastSyncDiagnostics.value = "Push gagal: ${e.message}"
             SyncResult(
                 success = false,
                 message = "Push gagal: ${e.message}",
@@ -234,7 +244,9 @@ class SyncRepositoryImpl(
     
     override suspend fun fullSync(): SyncResult {
         val pullResult = pullMasterData()
-        return if (pullResult.success) pushUserData() else pullResult
+        val result = if (pullResult.success) pushUserData() else pullResult
+        _lastSyncDiagnostics.value = result.message
+        return result
     }
     
     override suspend fun pullVocabularyUpdates(since: Long): List<Vocabulary> = withContext(Dispatchers.IO) {
