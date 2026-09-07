@@ -167,7 +167,7 @@ class ProgressRepositoryImpl(
                     reviewCount = logs.size,
                     correctCount = logs.count { it.correctness },
                     totalTimeMs = logs.sumOf { it.elapsedMs },
-                    expEarned = 0
+                    expEarned = logs.sumOf { estimateExpEarned(it) }
                 )
             }
             .sortedBy { it.date }
@@ -226,6 +226,21 @@ class ProgressRepositoryImpl(
             .map { it.executeAsList().map { m -> m.toModel() } }
             .map { list -> calculateDeckProgress(list) }
             .distinctUntilChanged()
+    }
+
+    /**
+     * EXP yang diperoleh dari satu log review, mengikuti rumus permainan aplikasi
+     * (GamificationUseCase). Data bersumber dari review_log sinkron server, sehingga
+     * jumlah per hari mencerminkan aktivitas belajar yang sesungguhnya.
+     */
+    private fun estimateExpEarned(log: ModelReviewLog): Long {
+        if (log.isNew) return com.kotomichi.usecase.GamificationUseCase.EXP_LEARN_NEW_CARD
+        if (!log.correctness) return 0L
+        return when (log.rating) {
+            Rating.EASY -> com.kotomichi.usecase.GamificationUseCase.EXP_REVIEW_EASY
+            Rating.HARD -> com.kotomichi.usecase.GamificationUseCase.EXP_REVIEW_HARD
+            else -> com.kotomichi.usecase.GamificationUseCase.EXP_REVIEW_CORRECT
+        }
     }
 
     private fun startOfDay(timestamp: Long): Long {
