@@ -35,7 +35,10 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterScreen(onRegisterSuccess: () -> Unit) {
+fun RegisterScreen(
+    onRegisterSuccess: () -> Unit,
+    onNavigateToLogin: () -> Unit
+) {
     val authUseCase: AuthUseCase = get()
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
@@ -194,7 +197,7 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit) {
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text("Sudah punya akun? ")
-                            TextButton(onClick = { /* Navigate to login */ }) {
+                            TextButton(onClick = onNavigateToLogin) {
                                 Text("Masuk", fontWeight = FontWeight.Medium)
                             }
                         }

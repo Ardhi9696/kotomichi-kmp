@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
@@ -58,7 +59,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardScreen(
     onNavigateToLearn: (Long) -> Unit,
-    onNavigateToReview: () -> Unit
+    onNavigateToReview: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val authUseCase: AuthUseCase = get()
     val deckProgressUseCase: DeckProgressUseCase = get()
@@ -106,6 +108,13 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Filled.Settings,
                             contentDescription = "Pengaturan",
+                            tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            imageVector = Icons.Filled.Logout,
+                            contentDescription = "Keluar",
                             tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
