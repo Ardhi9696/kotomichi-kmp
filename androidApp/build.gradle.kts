@@ -9,12 +9,12 @@ import java.util.Properties
 
 android {
     namespace = "com.kotomichi.app"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.kotomichi.app"
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "2.0.0"
 

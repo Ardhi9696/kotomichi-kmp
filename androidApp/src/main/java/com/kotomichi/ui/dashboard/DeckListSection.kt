@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,11 +39,11 @@ fun DeckListSection(
             )
         }
 
-        LazyColumn(
+        Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
         ) {
-            items(decks) { deck ->
+            decks.forEach { deck ->
                 val progress = deckProgressMap[deck.id]
                 DeckItem(deck = deck, progress = progress, onClick = { onDeckClick(deck.id) })
             }

@@ -16,4 +16,6 @@ object KotomichiDimens {
     val skeletonPlaceholderHeight = 96.dp
     val buttonSpinnerSize = 24.dp
     val buttonSpinnerStroke = 2.dp
+    val avatarSize = 44.dp
+    val heroSwitchHeight = 72.dp
 }

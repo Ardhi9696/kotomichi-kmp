@@ -58,7 +58,7 @@ sqldelight {
     databases {
         create("KotomichiDatabase") {
             packageName.set("com.kotomichi.db")
-            dialect("app.cash.sqldelight:sqlite-3-35-dialect:2.0.1")
+            dialect("app.cash.sqldelight:sqlite-3-35-dialect:2.0.2")
         }
     }
 }
@@ -69,9 +69,9 @@ kotlin {
 
 android {
     namespace = "com.kotomichi.shared"
-    compileSdk = 34
+    compileSdk = 36
     defaultConfig {
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 36
     }
 }
