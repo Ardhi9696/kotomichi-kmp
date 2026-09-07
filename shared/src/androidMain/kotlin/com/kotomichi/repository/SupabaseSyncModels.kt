@@ -154,7 +154,7 @@ internal data class SupabaseDeckRow(
 
 internal fun SupabaseUserProfileRow.toModelProfile(): com.kotomichi.model.UserProfile = com.kotomichi.model.UserProfile(
     id = id,
-    displayName = display_name ?: "",
+    displayName = display_name?.takeIf { it.isNotBlank() && !(it.contains('@') && it.contains('.')) } ?: "Pengguna",
     role = when (role?.lowercase()) {
         "super_admin" -> com.kotomichi.model.UserRole.SUPER_ADMIN
         "admin" -> com.kotomichi.model.UserRole.ADMIN

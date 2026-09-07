@@ -131,7 +131,26 @@ class AuthRepositoryImpl(
         val uid = userId ?: return
         try {
             val row = userQueries.selectById(uid).executeAsOneOrNull() ?: return
-            _currentUser.value = row.toModelProfile()
+            val profile = row.toModelProfile()
+            _currentUser.value = profile
+            if (profile.displayName.contains('@') && profile.displayName.contains('.')) {
+                userQueries.upsert(
+                    id = profile.id,
+                    display_name = "Pengguna",
+                    role = profile.role.name,
+                    preferred_locale = profile.preferredLocale,
+                    level = profile.level.toLong(),
+                    exp = profile.exp.toLong(),
+                    last_review_date = profile.lastReviewDate,
+                    current_streak = profile.currentStreak.toLong(),
+                    longest_streak = profile.longestStreak.toLong(),
+                    created_at = profile.createdAt,
+                    updated_at = System.currentTimeMillis(),
+                    theme = profile.theme,
+                    last_seen_at = profile.lastSeenAt
+                )
+                _currentUser.value = profile.copy(displayName = "Pengguna")
+            }
         } catch (e: Exception) {
             // Handle error
         }
@@ -316,7 +335,7 @@ class AuthRepositoryImpl(
         val metaName = user_metadata["name"]?.jsonPrimitive?.contentOrNull
         return ModelUserProfile(
             id = id,
-            displayName = metaName ?: email ?: "Pengguna",
+            displayName = metaName?.takeIf { it.isNotBlank() && !containsEmail(it) } ?: "Pengguna",
             role = UserRole.USER,
             preferredLocale = "id",
             createdAt = parseTimestamp(created_at),
@@ -331,6 +350,8 @@ class AuthRepositoryImpl(
         expiresAt = if (expires_in > 0) System.currentTimeMillis() + expires_in * 1000 else 0L,
         tokenType = token_type
     )
+
+    private fun containsEmail(value: String): Boolean = value.contains('@') && value.contains('.')
 
     private fun parseTimestamp(iso: String?): Long {
         if (iso.isNullOrBlank()) return System.currentTimeMillis()

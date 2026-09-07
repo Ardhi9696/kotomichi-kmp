@@ -2,5 +2,15 @@
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
     "@upstash/context7-opencode"
-  ]
+  ],
+  "mcp": {
+    "supabase": {
+      "type": "remote",
+      "url": "https://mcp.supabase.com/mcp?project_ref=wphwcwdwwlvoelvquecz",
+      "headers": {
+        "Authorization": "Bearer {env:SUPABASE_ACCESS_TOKEN}"
+      },
+      "enabled": true
+    }
+  }
 }
