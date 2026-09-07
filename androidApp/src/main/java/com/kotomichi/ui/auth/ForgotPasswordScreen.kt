@@ -4,15 +4,15 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -21,9 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,14 +29,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.kotomichi.di.get
-import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.model.ResetPasswordRequest
+import com.kotomichi.ui.components.KotomichiCard
+import com.kotomichi.ui.components.KotomichiCardVariant
+import com.kotomichi.ui.components.KotomichiDialog
+import com.kotomichi.ui.components.KotomichiTopBar
+import com.kotomichi.ui.theme.KotomichiDimens
+import com.kotomichi.ui.theme.KotomichiSpacing
+import com.kotomichi.usecase.AuthUseCase
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,8 +76,8 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Lupa Kata Sandi") },
+            KotomichiTopBar(
+                title = "Lupa Kata Sandi",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -86,10 +85,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
                             contentDescription = "Kembali"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -101,28 +97,26 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(KotomichiSpacing.xl),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 4.dp)
+                KotomichiCard(
+                    variant = KotomichiCardVariant.Filled,
+                    contentPadding = PaddingValues(KotomichiSpacing.xl)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.lg)
                     ) {
                         Text(
                             text = "Reset Kata Sandi",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = "Masukkan email yang terdaftar. Kami akan mengirimkan tautan untuk mengatur ulang kata sandi Anda.",
-                            fontSize = 14.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         OutlinedTextField(
                             value = email,
@@ -139,11 +133,12 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
+                                    modifier = Modifier.size(KotomichiDimens.buttonSpinnerSize),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = KotomichiDimens.buttonSpinnerStroke
                                 )
                             } else {
-                                Text("Kirim Tautan Reset", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                Text("Kirim Tautan Reset", style = MaterialTheme.typography.titleMedium)
                             }
                         }
                     }
@@ -153,20 +148,17 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
     }
 
     if (showDialog) {
-        AlertDialog(
-            onDismissRequest = {
+        KotomichiDialog(
+            title = if (successMessage != null) "Berhasil" else "Error",
+            text = successMessage ?: errorMessage ?: "Terjadi kesalahan",
+            confirmLabel = "OK",
+            onConfirm = {
                 showDialog = false
                 if (successMessage != null) onBack()
             },
-            title = { Text(if (successMessage != null) "Berhasil" else "Error") },
-            text = { Text(successMessage ?: errorMessage ?: "Terjadi kesalahan") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDialog = false
-                    if (successMessage != null) onBack()
-                }) {
-                    Text("OK")
-                }
+            onDismiss = {
+                showDialog = false
+                if (successMessage != null) onBack()
             }
         )
     }

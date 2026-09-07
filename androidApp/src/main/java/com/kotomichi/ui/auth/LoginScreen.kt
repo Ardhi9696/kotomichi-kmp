@@ -3,7 +3,10 @@ package com.kotomichi.ui.auth
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,9 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,8 +29,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,16 +38,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kotomichi.di.get
-import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.model.LoginRequest
+import com.kotomichi.ui.components.KotomichiCard
+import com.kotomichi.ui.components.KotomichiCardVariant
+import com.kotomichi.ui.components.KotomichiDialog
+import com.kotomichi.ui.components.KotomichiTopBar
+import com.kotomichi.ui.components.KotomichiTopBarVariant
+import com.kotomichi.ui.theme.KotomichiDimens
+import com.kotomichi.ui.theme.KotomichiSpacing
+import com.kotomichi.usecase.AuthUseCase
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,8 +100,8 @@ fun LoginScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Masuk ke Kotomichi") },
+            KotomichiTopBar(
+                title = "Masuk ke Kotomichi",
                 navigationIcon = {
                     IconButton(onClick = { showExitDialog = true }) {
                         Icon(
@@ -106,14 +109,11 @@ fun LoginScreen(
                             contentDescription = "Kembali"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
         }
     ) { paddingValues ->
-        androidx.compose.foundation.layout.Box(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -121,32 +121,30 @@ fun LoginScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(KotomichiSpacing.xl),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 4.dp)
+                KotomichiCard(
+                    variant = KotomichiCardVariant.Filled,
+                    contentPadding = PaddingValues(KotomichiSpacing.xl)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.lg),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = "Kotomichi",
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.headlineLarge,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = "言道 - Jalan Kata",
-                            fontSize = 16.sp,
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(KotomichiSpacing.sm))
 
                         OutlinedTextField(
                             value = email,
@@ -192,27 +190,27 @@ fun LoginScreen(
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
+                                    modifier = Modifier.size(KotomichiDimens.buttonSpinnerSize),
                                     color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
+                                    strokeWidth = KotomichiDimens.buttonSpinnerStroke
                                 )
                             } else {
-                                Text("Masuk", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                Text("Masuk", style = MaterialTheme.typography.titleMedium)
                             }
                         }
 
-                        androidx.compose.foundation.layout.Row(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text("Belum punya akun? ")
                             TextButton(onClick = onNavigateToRegister) {
-                                Text("Daftar", fontWeight = FontWeight.Medium)
+                                Text("Daftar", style = MaterialTheme.typography.labelLarge)
                             }
                         }
 
                         TextButton(onClick = onNavigateToForgotPassword) {
-                            Text("Lupa Kata Sandi?")
+                            Text("Lupa Kata Sandi?", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -221,36 +219,27 @@ fun LoginScreen(
     }
 
     if (showErrorDialog) {
-        AlertDialog(
-            onDismissRequest = { showErrorDialog = false },
-            title = { Text("Error") },
-            text = { Text(errorMessage ?: "Terjadi kesalahan") },
-            confirmButton = {
-                TextButton(onClick = { showErrorDialog = false }) {
-                    Text("OK")
-                }
-            }
+        KotomichiDialog(
+            title = "Error",
+            text = errorMessage ?: "Terjadi kesalahan",
+            confirmLabel = "OK",
+            onConfirm = { showErrorDialog = false },
+            onDismiss = { showErrorDialog = false }
         )
     }
 
     if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            title = { Text("Keluar Aplikasi") },
-            text = { Text("Yakin ingin keluar dari aplikasi?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showExitDialog = false
-                    (context as? Activity)?.finishAffinity()
-                }) {
-                    Text("Keluar")
-                }
+        KotomichiDialog(
+            title = "Keluar Aplikasi",
+            text = "Yakin ingin keluar dari aplikasi?",
+            confirmLabel = "Keluar",
+            dismissLabel = "Batal",
+            isDestructive = true,
+            onConfirm = {
+                showExitDialog = false
+                (context as? Activity)?.finishAffinity()
             },
-            dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text("Batal")
-                }
-            }
+            onDismiss = { showExitDialog = false }
         )
     }
 }

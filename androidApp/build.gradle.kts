@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "com.kotomichi.app"
-        minSdk = 24
+        minSdk = 28
         targetSdk = 34
         versionCode = 1
         versionName = "2.0.0"
@@ -50,6 +50,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -80,6 +81,7 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.work.runtime)
     implementation(libs.timber)
+    coreLibraryDesugaring(libs.desugar)
     implementation(libs.ktor.client.android)
     implementation(libs.ktor.client.logging)
     implementation(libs.ktor.client.content.negotiation)

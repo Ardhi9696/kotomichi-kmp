@@ -71,7 +71,7 @@ android {
     namespace = "com.kotomichi.shared"
     compileSdk = 34
     defaultConfig {
-        minSdk = 24
+        minSdk = 28
         targetSdk = 34
     }
 }

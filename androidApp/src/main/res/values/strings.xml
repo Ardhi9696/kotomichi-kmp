@@ -38,6 +38,13 @@
     <string name="activity_calendar">Kalender Aktivitas</string>
     <string name="today">Hari ini</string>
     
+    <!-- Bottom Navigation -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_belajar">Belajar</string>
+    <string name="nav_review">Review</string>
+    <string name="nav_progres">Progres</string>
+    <string name="nav_profil">Profil</string>
+    
     <!-- Learn -->
     <string name="learn_new_cards">Kartu Baru</string>
     <string name="direction_kanji_meaning">Kanji → Arti</string>

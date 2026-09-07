@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kotomichi.ui.common.KotomichiTheme
+import com.kotomichi.ui.theme.KotomichiTheme
 import com.kotomichi.navigation.AppNavHost
 import com.kotomichi.di.get
 import com.kotomichi.usecase.AuthUseCase
