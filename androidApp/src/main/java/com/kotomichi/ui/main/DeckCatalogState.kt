@@ -107,7 +107,7 @@ fun rememberDeckCatalog(userId: String?): DeckCatalogState {
     val deckRepository: DeckRepository = get()
     val deckProgressUseCase: DeckProgressUseCase = get()
 
-    val state = remember { DeckCatalogState(syncRepository, deckRepository, deckProgressUseCase, userId) }
+    val state = remember(userId) { DeckCatalogState(syncRepository, deckRepository, deckProgressUseCase, userId) }
 
     LaunchedEffect(userId) {
         if (userId == null) {
