@@ -1,23 +1,28 @@
 package com.kotomichi.ui.main
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kotomichi.di.get
 import com.kotomichi.model.UserProfile
 import com.kotomichi.ui.components.KotomichiBottomNavigation
 import com.kotomichi.ui.components.KotomichiDestination
+import com.kotomichi.ui.components.KotomichiDialog
+import com.kotomichi.ui.components.KotomichiGlobalLoadingOverlay
 import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.usecase.ReviewCardUseCase
 import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
+    onExitApp: () -> Unit,
     onNavigateToLearnDeck: (Long) -> Unit,
     onNavigateToReview: () -> Unit
 ) {
@@ -27,8 +32,14 @@ fun MainScreen(
     val user by authUseCase.currentUser.collectAsStateWithLifecycle(null)
     val dueCount by reviewUseCase.observeDueCount(user?.id ?: "").collectAsStateWithLifecycle(0)
 
-    var selected by remember { mutableStateOf(KotomichiDestination.Home) }
+    var selected by rememberSaveable { mutableStateOf(KotomichiDestination.Home) }
+    var showExitDialog by rememberSaveable { mutableStateOf(false) }
+    var isLoggingOut by remember { mutableStateOf(false) }
     val deckCatalog = rememberDeckCatalog(user?.id)
+
+    BackHandler {
+        showExitDialog = true
+    }
 
     Scaffold(
         topBar = {
@@ -62,26 +73,40 @@ fun MainScreen(
                 isLoading = deckCatalog.isLoading,
                 onDeckClick = onNavigateToLearnDeck
             )
-            KotomichiDestination.Review -> ReviewTab(
-                paddingValues = paddingValues,
-                dueCount = dueCount,
-                isLoading = deckCatalog.isLoading,
-                onStartReview = onNavigateToReview
-            )
-            KotomichiDestination.Progres -> ProgresTab(
-                paddingValues = paddingValues,
-                heatmap = emptyList(),
-                dailyStats = emptyList(),
-                isLoading = deckCatalog.isLoading
-            )
             KotomichiDestination.Profil -> ProfilTab(
                 paddingValues = paddingValues,
                 userName = user?.name ?: "",
                 userEmail = user?.email ?: "",
                 onLogout = {
-                    scope.launch { authUseCase.logout() }
+                    isLoggingOut = true
+                    scope.launch {
+                        try {
+                            authUseCase.logout()
+                        } finally {
+                            isLoggingOut = false
+                        }
+                    }
                 }
             )
         }
+    }
+
+    if (isLoggingOut) {
+        KotomichiGlobalLoadingOverlay(isVisible = true)
+    }
+
+    if (showExitDialog) {
+        KotomichiDialog(
+            title = "Keluar Aplikasi",
+            text = "Yakin ingin keluar dari aplikasi?",
+            confirmLabel = "Keluar",
+            dismissLabel = "Batal",
+            isDestructive = true,
+            onConfirm = {
+                showExitDialog = false
+                onExitApp()
+            },
+            onDismiss = { showExitDialog = false }
+        )
     }
 }

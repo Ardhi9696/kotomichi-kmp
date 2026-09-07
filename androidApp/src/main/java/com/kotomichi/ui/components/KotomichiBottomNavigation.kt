@@ -3,10 +3,8 @@ package com.kotomichi.ui.components
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -21,8 +19,6 @@ import com.kotomichi.app.R
 enum class KotomichiDestination(val icon: ImageVector, @param:StringRes val labelRes: Int) {
     Home(Icons.Rounded.Home, R.string.nav_home),
     Belajar(Icons.AutoMirrored.Rounded.MenuBook, R.string.nav_belajar),
-    Review(Icons.Rounded.Sync, R.string.nav_review),
-    Progres(Icons.Rounded.CalendarMonth, R.string.nav_progres),
     Profil(Icons.Rounded.Person, R.string.nav_profil)
 }
 

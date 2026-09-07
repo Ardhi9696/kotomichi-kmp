@@ -1,9 +1,11 @@
 package com.kotomichi.navigation
 
+import android.app.Activity
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -57,7 +59,11 @@ fun AppNavHost(isAuthenticated: Boolean) {
             ForgotPasswordScreen(onBack = { navController.popBackStack() })
         }
         composable("main") {
+            val context = LocalContext.current
             MainScreen(
+                onExitApp = {
+                    (context as? Activity)?.finishAffinity()
+                },
                 onNavigateToLearnDeck = { deckId -> navController.navigate("learn/$deckId") },
                 onNavigateToReview = { navController.navigate("review") }
             )

@@ -33,29 +33,30 @@ private fun KotomichiCardBody(
 fun KotomichiCard(
     variant: KotomichiCardVariant = KotomichiCardVariant.Filled,
     onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(KotomichiSpacing.lg),
     content: @Composable ColumnScope.() -> Unit
 ) {
     when (variant) {
         KotomichiCardVariant.Elevated -> {
             if (onClick != null) {
-                ElevatedCard(onClick = onClick) { KotomichiCardBody(contentPadding, content) }
+                ElevatedCard(onClick = onClick, modifier = modifier) { KotomichiCardBody(contentPadding, content) }
             } else {
-                ElevatedCard { KotomichiCardBody(contentPadding, content) }
+                ElevatedCard(modifier = modifier) { KotomichiCardBody(contentPadding, content) }
             }
         }
         KotomichiCardVariant.Filled -> {
             if (onClick != null) {
-                Card(onClick = onClick) { KotomichiCardBody(contentPadding, content) }
+                Card(onClick = onClick, modifier = modifier) { KotomichiCardBody(contentPadding, content) }
             } else {
-                Card { KotomichiCardBody(contentPadding, content) }
+                Card(modifier = modifier) { KotomichiCardBody(contentPadding, content) }
             }
         }
         KotomichiCardVariant.Outlined -> {
             if (onClick != null) {
-                OutlinedCard(onClick = onClick) { KotomichiCardBody(contentPadding, content) }
+                OutlinedCard(onClick = onClick, modifier = modifier) { KotomichiCardBody(contentPadding, content) }
             } else {
-                OutlinedCard { KotomichiCardBody(contentPadding, content) }
+                OutlinedCard(modifier = modifier) { KotomichiCardBody(contentPadding, content) }
             }
         }
     }
