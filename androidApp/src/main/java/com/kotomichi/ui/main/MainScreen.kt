@@ -1,25 +1,16 @@
+/**
+ * File: MainScreen.kt
+ * Responsibility: Orchestrator utama UI aplikasi. Mengkoordinasikan state, top bar, konten tab,
+ *                 bottom navigation, dan dialog. Menggunakan komponen terpisah untuk setiap tanggung jawab.
+ */
 package com.kotomichi.ui.main
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kotomichi.di.get
-import com.kotomichi.model.UserProfile
+import androidx.compose.ui.platform.LocalContext
 import com.kotomichi.ui.components.KotomichiBottomNavigation
-import com.kotomichi.ui.components.KotomichiDestination
-import com.kotomichi.ui.components.KotomichiDialog
 import com.kotomichi.ui.components.KotomichiGlobalLoadingOverlay
-import com.kotomichi.usecase.AuthUseCase
-import com.kotomichi.usecase.GamificationUseCase
-import com.kotomichi.usecase.ReviewCardUseCase
 import kotlinx.coroutines.launch
 
 @Composable
@@ -28,112 +19,87 @@ fun MainScreen(
     onNavigateToLearnDeck: (Long) -> Unit,
     onNavigateToReview: () -> Unit
 ) {
-    val authUseCase: AuthUseCase = get()
-    val reviewUseCase: ReviewCardUseCase = get()
-    val gamificationUseCase: GamificationUseCase = remember { get() }
-    val scope = rememberCoroutineScope()
-    val user by authUseCase.currentUser.collectAsStateWithLifecycle(null)
-    val dueCount by reviewUseCase.observeDueCount(user?.id ?: "").collectAsStateWithLifecycle(0)
+    val context = LocalContext.current
+    val state = rememberMainScreenState(context, onExitApp)
 
-    var selected by rememberSaveable { mutableStateOf(KotomichiDestination.Home) }
-    var showExitDialog by rememberSaveable { mutableStateOf(false) }
-    var isLoggingOut by remember { mutableStateOf(false) }
-    var showDebug by remember { mutableStateOf(false) }
-    var debugInfo by remember { mutableStateOf("") }
-    val catalogState = rememberDeckCatalog(user?.id)
-    val deckCatalog = catalogState.catalog
-
-    LaunchedEffect(showDebug) {
-        if (showDebug) {
-            debugInfo = buildDebugInfo(user, dueCount, deckCatalog)
-        }
-    }
-
-    val currentLevel = user?.currentLevel ?: 1
-    val totalExp = user?.totalExp ?: 0L
-    val nextLevelExp = gamificationUseCase.calculateExpForLevel(currentLevel + 1)
-    val currentLevelExp = gamificationUseCase.calculateExpForLevel(currentLevel)
-    val expProgress = gamificationUseCase.calculateExpProgress(currentLevel, totalExp)
-
+    // Back handler: jika ada menu aktif, tutup menu; jika tidak, tampilkan dialog keluar
     BackHandler {
-        showExitDialog = true
+        if (state.activeMenu != null) {
+            state.setActiveMenu(null)
+        } else {
+            state.setShowExitDialog(true)
+        }
     }
 
     Scaffold(
         topBar = {
-            if (selected == KotomichiDestination.Home) {
-                HomeTopBar(
-                    userName = user?.name ?: "",
-                    level = currentLevel,
-                    totalExp = totalExp,
-                    currentLevelExp = currentLevelExp,
-                    nextLevelExp = nextLevelExp,
-                    expProgress = expProgress,
-                    onNotificationsClick = {},
-                    onDebugTap = { showDebug = true }
-                )
-            }
+            MainScreenTopBar(
+                selected = state.selected,
+                activeMenu = state.activeMenu,
+                selectedDeck = state.selectedDeck,
+                showDeckPicker = state.showDeckPicker,
+                user = state.user,
+                currentLevel = state.currentLevel,
+                totalExp = state.totalExp,
+                currentLevelExp = state.currentLevelExp,
+                nextLevelExp = state.nextLevelExp,
+                expProgress = state.expProgress,
+                onDebugTap = { state.setShowDebug(true) },
+                onDeckClick = { state.setShowDeckPicker(true) },
+                onMenuBack = { state.setActiveMenu(null) }
+            )
         },
         bottomBar = {
-            KotomichiBottomNavigation(
-                current = selected,
-                onNavigate = { selected = it }
-            )
+            if (state.activeMenu == null) {
+                KotomichiBottomNavigation(
+                    current = state.selected,
+                    onNavigate = state.setSelected
+                )
+            }
         }
     ) { paddingValues ->
-        when (selected) {
-            KotomichiDestination.Home -> HomeTab(
-                paddingValues = paddingValues,
-                user = user,
-                deckCatalog = deckCatalog,
-                dueCount = dueCount,
-                onRefresh = { scope.launch { catalogState.refresh() } }
-            )
-            KotomichiDestination.Belajar -> StudyHubTab(
-                paddingValues = paddingValues,
-                decks = deckCatalog.decks,
-                deckProgressMap = deckCatalog.deckProgressMap,
-                isLoading = deckCatalog.isLoading,
-                onDeckClick = onNavigateToLearnDeck
-            )
-            KotomichiDestination.Profil -> ProfilTab(
-                paddingValues = paddingValues,
-                userName = user?.name ?: "",
-                userEmail = user?.email ?: "",
-                onLogout = {
-                    isLoggingOut = true
-                    scope.launch {
-                        try {
-                            authUseCase.logout()
-                        } finally {
-                            isLoggingOut = false
-                        }
+        MainScreenContent(
+            paddingValues = paddingValues,
+            selected = state.selected,
+            user = state.user,
+            deckCatalog = state.deckCatalog,
+            dueCount = state.dueCount,
+            activeMenu = state.activeMenu,
+            showDeckPicker = state.showDeckPicker,
+            selectedDeck = state.selectedDeck,
+            onRefresh = { state.scope.launch { state.catalogState.refresh() } },
+            onSelectDeck = { deck ->
+                state.setSelectedDeckId(deck.id)
+                com.kotomichi.ui.theme.DeckPreference.write(context, deck.id)
+                state.setShowDeckPicker(false)
+            },
+            onDismissDeckPicker = { state.setShowDeckPicker(false) },
+            onActivateMenu = state.setActiveMenu,
+            onLogout = {
+                state.setIsLoggingOut(true)
+                state.scope.launch {
+                    try {
+                        com.kotomichi.di.get<com.kotomichi.usecase.AuthUseCase>().logout()
+                    } finally {
+                        state.setIsLoggingOut(false)
                     }
                 }
-            )
-        }
-    }
-
-    if (isLoggingOut) {
-        KotomichiGlobalLoadingOverlay(isVisible = true)
-    }
-
-    if (showExitDialog) {
-        KotomichiDialog(
-            title = "Keluar Aplikasi",
-            text = "Yakin ingin keluar dari aplikasi?",
-            confirmLabel = "Keluar",
-            dismissLabel = "Batal",
-            isDestructive = true,
-            onConfirm = {
-                showExitDialog = false
-                onExitApp()
             },
-            onDismiss = { showExitDialog = false }
+            onUpdateName = { newName ->
+                val currentUser = state.user ?: throw IllegalStateException("Tidak ada sesi aktif")
+                com.kotomichi.di.get<com.kotomichi.usecase.AuthUseCase>()
+                    .updateProfile(currentUser.copy(displayName = newName))
+            }
         )
     }
 
-    if (showDebug) {
-        DebugInfoDialog(info = debugInfo, onDismiss = { showDebug = false })
-    }
+    MainScreenDialogs(
+        isLoggingOut = state.isLoggingOut,
+        showExitDialog = state.showExitDialog,
+        showDebug = state.showDebug,
+        debugInfo = state.debugInfo,
+        onExitApp = state.onExitApp,
+        onExitDialogDismiss = { state.setShowExitDialog(false) },
+        onDebugDismiss = { state.setShowDebug(false) }
+    )
 }

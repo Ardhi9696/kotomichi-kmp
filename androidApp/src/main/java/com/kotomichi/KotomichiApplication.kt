@@ -4,6 +4,7 @@ import android.app.Application
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.kotomichi.di.androidModule
 import com.kotomichi.di.sharedModule
+import com.kotomichi.ui.theme.LanguagePreference
 import com.kotomichi.ui.theme.ThemePreference
 import com.kotomichi.util.SyncScheduler
 import com.kotomichi.util.SyncTtlManager
@@ -17,6 +18,7 @@ class KotomichiApplication : Application() {
         // Aktifkan Crashlytics untuk menangkap semua error runtime (fatal + non-fatal).
         runCatching { FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true) }
         ThemePreference.init(this)
+        LanguagePreference.init(this)
         startKoin {
             androidContext(this@KotomichiApplication)
             modules(listOf(sharedModule, androidModule))

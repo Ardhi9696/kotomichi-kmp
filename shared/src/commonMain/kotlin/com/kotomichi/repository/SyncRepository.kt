@@ -24,6 +24,7 @@ interface SyncRepository {
     fun observeSyncStatus(): Flow<SyncStatus>
     fun observeLastSyncTime(): Flow<Long>
     val lastSyncDiagnostics: StateFlow<String>
+    val isSyncing: StateFlow<Boolean>
     suspend fun masterSyncSince(): Long?
     suspend fun pendingReviewLogIds(): List<Long>
 }

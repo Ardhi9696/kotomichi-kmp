@@ -14,6 +14,7 @@ import com.kotomichi.repository.VocabRepository
 import com.kotomichi.repository.DeckRepository
 import com.kotomichi.fsrs.FsrsCalculator
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 
 class LearnCardUseCase(
@@ -196,6 +197,8 @@ class StatisticsUseCase(
 class SyncDataUseCase(
     private val syncRepository: com.kotomichi.repository.SyncRepository
 ) {
+    val isSyncing: StateFlow<Boolean> = syncRepository.isSyncing
+
     suspend fun performFullSync(): com.kotomichi.repository.SyncResult {
         return syncRepository.fullSync()
     }

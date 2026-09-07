@@ -46,6 +46,12 @@ class DeckCatalogState(
         isSynchronizing = true
         catalog = catalog.copy(isSyncing = !showSkeleton, isLoading = showSkeleton, loadError = null)
         try {
+            // Pipeline lain (WorkManager/TTL) sedang sync → jangan tarik ulang,
+            // cukup muat data lokal agar UI tetap responsif.
+            if (!force && syncRepository.isSyncing.value) {
+                reloadLocal(null)
+                return
+            }
             if (!force && !SyncTtlManager.isStale(SyncTtlManager.TTL_ON_RESUME_MS)) {
                 reloadLocal(null)
                 return
@@ -102,6 +108,21 @@ class DeckCatalogState(
         catalog = DeckCatalog(isLoading = false)
     }
 
+    /** Muat ulang data dari DB lokal tanpa menyentuh jaringan. */
+    suspend fun reloadLocalOnly() {
+        runCatching { reloadLocal(null) }
+            .onFailure { t ->
+                Timber.e(t, "reloadLocalOnly gagal")
+                catalog = catalog.copy(
+                    decks = emptyList(),
+                    deckProgressMap = emptyMap(),
+                    totalVocabulary = 0,
+                    isLoading = false,
+                    loadError = "Gagal memuat data lokal: ${t.message}"
+                )
+            }
+    }
+
     private suspend fun reloadLocal(error: String?) {
         val decks = try {
             deckRepository.getPublishedDecks()
@@ -145,7 +166,9 @@ fun rememberDeckCatalog(userId: String?): DeckCatalogState {
         state.sync(showSkeleton = !hasLocalData)
         while (true) {
             delay(PERIODIC_SYNC_INTERVAL_MS)
-            state.sync(showSkeleton = false)
+            // Tarikan data periodik ditangani terpusat (TTL/WorkManager via SyncCoordinator).
+            // Di sini cukup muat ulang dari DB lokal agar UI tetap segar tanpa dobel sync.
+            state.reloadLocalOnly()
         }
     }
 

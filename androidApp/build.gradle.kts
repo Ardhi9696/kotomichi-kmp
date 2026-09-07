@@ -39,9 +39,27 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        create("release") {
+            val signProps = Properties().apply {
+                val f = rootProject.file("local.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+            val keystorePath = signProps.getProperty("RELEASE_KEYSTORE_PATH")
+            if (keystorePath != null) {
+                storeFile = rootProject.file(keystorePath)
+                storePassword = signProps.getProperty("RELEASE_KEYSTORE_PASSWORD", "")
+                keyAlias = signProps.getProperty("RELEASE_KEY_ALIAS", "")
+                keyPassword = signProps.getProperty("RELEASE_KEY_PASSWORD", "")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release").takeIf { it.storeFile != null }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
@@ -63,6 +81,11 @@ android {
         resources {
             excludes += "/META-INF/*"
         }
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 }
 

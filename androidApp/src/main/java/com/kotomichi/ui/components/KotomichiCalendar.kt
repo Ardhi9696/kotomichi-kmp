@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
@@ -117,19 +116,18 @@ private fun SummaryRow(summary: CalendarSummary) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
     ) {
-        SummaryTile("${summary.minutesToday}min", "hari ini")
-        SummaryTile("${summary.dayStreak}", "streak")
-        SummaryTile("${summary.daysThisMonth}", "hari bulan ini")
-        SummaryTile("${summary.totalMinutes}", "total menit")
+        SummaryTile("${summary.minutesToday}min", "hari ini", Modifier.weight(1f))
+        SummaryTile("${summary.dayStreak}", "streak", Modifier.weight(1f))
+        SummaryTile("${summary.daysThisMonth}", "hari bulan ini", Modifier.weight(1f))
+        SummaryTile("${summary.totalMinutes}", "total menit", Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun SummaryTile(value: String, label: String) {
+private fun SummaryTile(value: String, label: String, modifier: Modifier = Modifier) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .background(
                 MaterialTheme.colorScheme.surfaceVariant,
                 MaterialTheme.shapes.medium
@@ -315,16 +313,16 @@ private fun DayDetail(date: LocalDate, stats: DailyStats?) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
         ) {
-            DetailStat("$minutes min", "dipelajari")
-            DetailStat("$reviews review", "ditinjau")
-            DetailStat(if (exp > 0) "+$exp EXP" else "+0 EXP", "EXP")
+            DetailStat("$minutes min", "dipelajari", Modifier.weight(1f))
+            DetailStat("$reviews review", "ditinjau", Modifier.weight(1f))
+            DetailStat(if (exp > 0) "+$exp EXP" else "+0 EXP", "EXP", Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun DetailStat(value: String, label: String) {
-    Column(modifier = Modifier.weight(1f)) {
+private fun DetailStat(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         Text(text = value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(
             text = label,

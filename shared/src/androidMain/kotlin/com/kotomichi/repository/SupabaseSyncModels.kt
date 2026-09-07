@@ -1,54 +1,6 @@
 package com.kotomichi.repository
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-
-internal const val PENDING_REVIEW_LOG_KEY = "pending_review_log_ids"
-internal const val MASTER_WATERMARK_KEY = "master_sync_since"
-
-private val pendingJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-
-internal fun encodeLongList(items: List<Long>): String = pendingJson.encodeToString(items)
-
-internal fun decodeLongList(json: String?): List<Long> {
-    if (json.isNullOrBlank()) return emptyList()
-    return try {
-        pendingJson.decodeFromString<List<Long>>(json)
-    } catch (e: Exception) {
-        emptyList()
-    }
-}
-
-internal fun formatSupabaseTimestamp(epochMs: Long): String {
-    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
-    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-    return sdf.format(java.util.Date(epochMs))
-}
-
-internal fun formatSupabaseDate(epochMs: Long): String {
-    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-    return sdf.format(java.util.Date(epochMs))
-}
-
-/**
- * Deterministic, always-negative id derived from review content.
- * Sends review logs to Supabase with a stable negative id so that re-pushes
- * (after a partial failure) are ignored via the review_log PK (ignore-duplicates),
- * while never colliding with server-side positive sequence ids or with other users.
- */
-internal fun reviewLogRemoteId(userId: String, vocabularyId: Long, direction: Int, reviewedAt: Long, rating: Int): Long {
-    val canonical = "$userId|$vocabularyId|$direction|$reviewedAt|$rating"
-    var hash = -3750763034362895579L
-    canonical.toByteArray(java.nio.charset.StandardCharsets.UTF_8).forEach { b ->
-        hash = (hash xor (b.toLong() and 0xff)) * 0x100000001b3L
-    }
-    val magnitude = if (hash == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(hash)
-    return if (magnitude == 0L) -1L else -magnitude
-}
-
-@Serializable
 internal data class SupabaseSrsProgress(
     val user_id: String,
     val vocabulary_id: Long,
@@ -106,6 +58,14 @@ internal data class SupabaseDirectionThresholdRow(
     val good_threshold_ms: Int,
     val updated_by: String? = null,
     val updated_at: String? = null
+)
+
+internal fun SupabaseDirectionThresholdRow.toModel(): com.kotomichi.model.DirectionThresholds = com.kotomichi.model.DirectionThresholds(
+    direction = com.kotomichi.model.Direction.values().getOrElse((direction - 1).coerceIn(0, 5)) { com.kotomichi.model.Direction.KANJI_TO_MEANING },
+    fastThresholdMs = fast_threshold_ms,
+    goodThresholdMs = good_threshold_ms,
+    updatedBy = updated_by,
+    updatedAt = updated_at?.let { parseSupabaseTimestamp(it) } ?: System.currentTimeMillis()
 )
 
 @Serializable
@@ -217,26 +177,3 @@ internal fun SupabaseUserProfileRow.toModelProfile(): com.kotomichi.model.UserPr
     theme = theme ?: "system",
     lastSeenAt = parseSupabaseTimestamp(last_seen_at)
 )
-
-internal fun parseSupabaseTimestamp(iso: String?): Long {
-    if (iso.isNullOrBlank()) return System.currentTimeMillis()
-    return try {
-        val cleaned = iso.substringBefore('.')
-        java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-            .parse(cleaned.substringBefore('Z'))
-            ?.time ?: System.currentTimeMillis()
-    } catch (e: Exception) {
-        System.currentTimeMillis()
-    }
-}
-
-internal fun parseSupabaseDate(date: String?): Long? {
-    if (date.isNullOrBlank()) return null
-    return try {
-        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-            .parse(date)
-            ?.time
-    } catch (e: Exception) {
-        null
-    }
-}

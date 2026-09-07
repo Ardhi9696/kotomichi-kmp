@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kotomichi.ui.components.KotomichiProgressBar
 import com.kotomichi.ui.theme.KotomichiDimens
@@ -113,11 +114,11 @@ Text(
 }
 
 @Composable
-fun Avatar(name: String, modifier: Modifier = Modifier) {
+fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = KotomichiDimens.avatarSize) {
     val initial = name.trim().firstOrNull()?.uppercase() ?: "?"
     Column(
         modifier = modifier
-            .size(KotomichiDimens.avatarSize)
+            .size(size)
             .background(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = CircleShape

@@ -17,6 +17,7 @@ interface VocabRepository {
     suspend fun linkVocabToDeck(deckVocab: DeckVocabulary)
     suspend fun unlinkVocabFromDeck(deckId: Long, vocabId: Long)
     fun observeVocabulary(vocabId: Long): Flow<Vocabulary?>
+    suspend fun getVocabularyByDeck(deckId: Long): List<Vocabulary>
 }
 
 interface DeckRepository {

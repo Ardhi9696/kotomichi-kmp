@@ -154,6 +154,12 @@ class VocabRepositoryImpl(
         }
         response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK
     }
+
+    override suspend fun getVocabularyByDeck(deckId: Long): List<ModelVocabulary> = withContext(Dispatchers.IO) {
+        val ids = deckVocabQueries.selectVocabIdsByDeck(deckId).executeAsList()
+        if (ids.isEmpty()) return@withContext emptyList()
+        vocabQueries.selectByIds(ids).executeAsList().withTranslations()
+    }
 }
 
 internal fun ModelVocabulary.toEntity(): Vocabulary = Vocabulary(

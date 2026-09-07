@@ -32,3 +32,8 @@ DerivedData/
 # Environment / secrets
 .env
 .env.*
+
+# Signing
+*.jks
+*.keystore
+keystore.properties
