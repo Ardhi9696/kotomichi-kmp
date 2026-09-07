@@ -152,11 +152,13 @@ suspend fun buildDebugInfo(user: UserProfile?, dueCount: Int, catalog: DeckCatal
     }
 }
 
-private fun fmtDateTime(ms: Long): String = java.time.Instant.ofEpochMilli(ms)
-    .atZone(java.time.ZoneId.systemDefault())
-    .toLocalDateTime()
-    .truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
-    .toString()
+private fun fmtDateTime(ms: Long?): String =
+    if (ms == null || ms <= 0L) "-"
+    else java.time.Instant.ofEpochMilli(ms)
+        .atZone(java.time.ZoneId.systemDefault())
+        .toLocalDateTime()
+        .truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
+        .toString()
 
 private fun fmtDate(ms: Long?): String =
     if (ms == null || ms <= 0L) "-"
