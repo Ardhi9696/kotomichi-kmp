@@ -6,6 +6,7 @@ import com.kotomichi.db.DbFactory
 import com.kotomichi.repository.AuthRepository
 import com.kotomichi.repository.AuthRepositoryImpl
 import com.kotomichi.repository.DeckRepository
+import com.kotomichi.repository.DeckRepositoryImpl
 import com.kotomichi.repository.ProgressRepository
 import com.kotomichi.repository.ProgressRepositoryImpl
 import com.kotomichi.repository.SyncRepository
@@ -57,6 +58,8 @@ val androidModule = module {
     ) }
     
     single<ProgressRepository> { ProgressRepositoryImpl(database = get()) }
+
+    single<DeckRepository> { DeckRepositoryImpl(database = get()) }
     
     single<AuthRepository> { AuthRepositoryImpl(
         database = get(),

@@ -144,13 +144,13 @@ fun DashboardScreen(
             ) {
                 // User Profile Card
                 ProfileCard(
-                    user = user!!,
-                    currentLevel = currentLevel,
-                    totalExp = totalExp,
+                    user = user ?: com.kotomichi.model.UserProfile(id = ""),
+                    currentLevel = if (user != null) currentLevel else 1,
+                    totalExp = if (user != null) totalExp else 0L,
                     nextLevelExp = nextLevelExp,
                     currentLevelExp = currentLevelExp,
                     expProgress = expProgress,
-                    currentStreak = currentStreak
+                    currentStreak = if (user != null) currentStreak else 0
                 )
                 
                 // Action Buttons

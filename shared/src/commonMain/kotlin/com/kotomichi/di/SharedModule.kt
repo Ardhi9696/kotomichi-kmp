@@ -19,32 +19,40 @@ val sharedModule = module {
     single { FsrsCalculator }
     single { BktCalculator }
     
-    factory { (vocabRepo: com.kotomichi.repository.VocabRepository, progressRepo: com.kotomichi.repository.ProgressRepository, deckRepo: com.kotomichi.repository.DeckRepository) ->
-        LearnCardUseCase(vocabRepo, progressRepo, deckRepo)
+    factory {
+        LearnCardUseCase(
+            get<com.kotomichi.repository.VocabRepository>(),
+            get<com.kotomichi.repository.ProgressRepository>(),
+            get<com.kotomichi.repository.DeckRepository>()
+        )
     }
     
-    factory { (progressRepo: com.kotomichi.repository.ProgressRepository) ->
-        ReviewCardUseCase(progressRepo)
+    factory {
+        ReviewCardUseCase(get<com.kotomichi.repository.ProgressRepository>())
     }
     
-    factory { (deckRepo: com.kotomichi.repository.DeckRepository, progressRepo: com.kotomichi.repository.ProgressRepository, vocabRepo: com.kotomichi.repository.VocabRepository) ->
-        DeckProgressUseCase(deckRepo, progressRepo, vocabRepo)
+    factory {
+        DeckProgressUseCase(
+            get<com.kotomichi.repository.DeckRepository>(),
+            get<com.kotomichi.repository.ProgressRepository>(),
+            get<com.kotomichi.repository.VocabRepository>()
+        )
     }
     
-    factory { (progressRepo: com.kotomichi.repository.ProgressRepository) ->
-        StatisticsUseCase(progressRepo)
+    factory {
+        StatisticsUseCase(get<com.kotomichi.repository.ProgressRepository>())
     }
     
-    factory { (authRepo: com.kotomichi.repository.AuthRepository) ->
-        AuthUseCase(authRepo)
+    factory {
+        AuthUseCase(get<com.kotomichi.repository.AuthRepository>())
     }
     
-    factory { (progressRepo: com.kotomichi.repository.ProgressRepository) ->
-        GamificationUseCase(progressRepo)
+    factory {
+        GamificationUseCase(get<com.kotomichi.repository.ProgressRepository>())
     }
     
-    factory { (syncRepo: com.kotomichi.repository.SyncRepository) ->
-        SyncDataUseCase(syncRepo)
+    factory {
+        SyncDataUseCase(get<com.kotomichi.repository.SyncRepository>())
     }
 }
 
