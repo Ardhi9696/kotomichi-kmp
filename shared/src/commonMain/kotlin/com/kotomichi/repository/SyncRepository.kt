@@ -7,6 +7,7 @@ import com.kotomichi.model.ReviewLog
 import com.kotomichi.model.UserProfile
 import com.kotomichi.model.DirectionThresholds
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 interface SyncRepository {
     suspend fun pullMasterData(): SyncResult
@@ -22,6 +23,7 @@ interface SyncRepository {
     
     fun observeSyncStatus(): Flow<SyncStatus>
     fun observeLastSyncTime(): Flow<Long>
+    val lastSyncDiagnostics: StateFlow<String>
 }
 
 data class SyncResult(

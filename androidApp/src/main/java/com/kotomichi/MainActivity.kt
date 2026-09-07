@@ -11,15 +11,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kotomichi.navigation.AppNavHost
+import com.kotomichi.ui.common.SplashScreen
 import com.kotomichi.ui.theme.KotomichiTheme
 import com.kotomichi.ui.theme.ThemePreference
 import com.kotomichi.usecase.AuthUseCase
+import kotlinx.coroutines.delay
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -44,7 +51,18 @@ class MainActivity : ComponentActivity(), KoinComponent {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val isAuthenticated by authUseCase.isAuthenticated.collectAsStateWithLifecycle(false)
-                    AppNavHost(isAuthenticated = isAuthenticated)
+                    var showSplash by rememberSaveable { mutableStateOf(true) }
+
+                    LaunchedEffect(Unit) {
+                        delay(1400)
+                        showSplash = false
+                    }
+
+                    if (showSplash) {
+                        SplashScreen()
+                    } else {
+                        AppNavHost(isAuthenticated = isAuthenticated)
+                    }
                 }
             }
         }

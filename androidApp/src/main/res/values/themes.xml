@@ -1,5 +1,7 @@
 <resources>
     <style name="Theme.Kotomichi" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@color/washi_500</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
         <item name="colorPrimary">@color/shu_500</item>
         <item name="colorPrimaryContainer">@color/shu_100</item>
         <item name="colorSecondary">@color/matsuba_500</item>

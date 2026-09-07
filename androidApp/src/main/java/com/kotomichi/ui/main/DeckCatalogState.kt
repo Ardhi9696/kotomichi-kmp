@@ -12,39 +12,104 @@ import com.kotomichi.model.DeckProgress
 import com.kotomichi.repository.DeckRepository
 import com.kotomichi.repository.SyncRepository
 import com.kotomichi.usecase.DeckProgressUseCase
+import kotlinx.coroutines.delay
+
+private const val PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000L
 
 data class DeckCatalog(
     val decks: List<Deck> = emptyList(),
     val deckProgressMap: Map<Long, DeckProgress> = emptyMap(),
+    val totalVocabulary: Int = 0,
     val isLoading: Boolean = true,
-    val loadError: String? = null
+    val isRefreshing: Boolean = false,
+    val isSyncing: Boolean = false,
+    val loadError: String? = null,
+    val refreshTick: Int = 0
 )
 
+class DeckCatalogState(
+    private val syncRepository: SyncRepository,
+    private val deckRepository: DeckRepository,
+    private val deckProgressUseCase: DeckProgressUseCase,
+    private val userId: String?
+) {
+    var catalog by mutableStateOf(DeckCatalog())
+        private set
+
+    private var isSynchronizing = false
+
+    suspend fun sync(showSkeleton: Boolean) {
+        if (isSynchronizing) return
+        isSynchronizing = true
+        catalog = catalog.copy(isSyncing = !showSkeleton, isLoading = showSkeleton, loadError = null)
+        try {
+            val masterResult = syncRepository.pullMasterData()
+            val userResult = userId?.let { syncRepository.pullUserData() }
+            val success = masterResult.success && (userResult?.success ?: true)
+            val error = if (success) null else buildString {
+                if (!masterResult.success) append(masterResult.message)
+                userResult?.takeIf { !it.success }?.let {
+                    if (isNotEmpty()) append("; ")
+                    append(it.message)
+                }
+            }.ifBlank { null }
+            reloadLocal(error)
+        } finally {
+            catalog = catalog.copy(isSyncing = false)
+            isSynchronizing = false
+        }
+    }
+
+    suspend fun refresh() {
+        if (catalog.isLoading) {
+            sync(showSkeleton = true)
+            return
+        }
+        catalog = catalog.copy(isRefreshing = true)
+        sync(showSkeleton = false)
+        catalog = catalog.copy(isRefreshing = false)
+    }
+
+    fun showEmpty() {
+        catalog = DeckCatalog(isLoading = false)
+    }
+
+    private suspend fun reloadLocal(error: String?) {
+        val decks = deckRepository.getPublishedDecks()
+        val progressMap = userId?.let {
+            deckProgressUseCase.getAllDeckProgress(it).associateBy { it.deckId }
+        } ?: emptyMap()
+        catalog = DeckCatalog(
+            decks = decks,
+            deckProgressMap = progressMap,
+            totalVocabulary = deckRepository.getVocabularyCount(),
+            isLoading = false,
+            loadError = error,
+            refreshTick = catalog.refreshTick + 1
+        )
+    }
+}
+
 @Composable
-fun rememberDeckCatalog(userId: String?): DeckCatalog {
+fun rememberDeckCatalog(userId: String?): DeckCatalogState {
     val syncRepository: SyncRepository = get()
     val deckRepository: DeckRepository = get()
     val deckProgressUseCase: DeckProgressUseCase = get()
 
-    var catalog by remember { mutableStateOf(DeckCatalog()) }
+    val state = remember { DeckCatalogState(syncRepository, deckRepository, deckProgressUseCase, userId) }
 
     LaunchedEffect(userId) {
         if (userId == null) {
-            catalog = DeckCatalog(isLoading = false)
+            state.showEmpty()
             return@LaunchedEffect
         }
-        catalog = catalog.copy(isLoading = true, loadError = null)
-        runCatching { syncRepository.pullMasterData() }
-        val progressResult = runCatching { syncRepository.pullUserData() }
-        val decks = deckRepository.getPublishedDecks()
-        val deckProgressMap = deckProgressUseCase.getAllDeckProgress(userId).associateBy { it.deckId }
-        catalog = DeckCatalog(
-            decks = decks,
-            deckProgressMap = deckProgressMap,
-            isLoading = false,
-            loadError = progressResult.exceptionOrNull()?.message
-        )
+        val hasLocalData = deckRepository.getPublishedDecks().isNotEmpty()
+        state.sync(showSkeleton = !hasLocalData)
+        while (true) {
+            delay(PERIODIC_SYNC_INTERVAL_MS)
+            state.sync(showSkeleton = false)
+        }
     }
 
-    return catalog
+    return state
 }

@@ -3,8 +3,10 @@ package com.kotomichi.repository
 import com.kotomichi.db.KotomichiDatabase
 import com.kotomichi.db.Vocabulary
 import com.kotomichi.db.DeckVocabulary
+import com.kotomichi.db.VocabularyTranslation
 import com.kotomichi.model.Vocabulary as ModelVocabulary
 import com.kotomichi.model.DeckVocabulary as ModelDeckVocabulary
+import com.kotomichi.model.VocabularyTranslation as ModelVocabularyTranslation
 import com.kotomichi.model.JlptLevel
 import app.cash.sqldelight.coroutines.asFlow
 import kotlinx.coroutines.flow.Flow
@@ -39,12 +41,55 @@ class VocabRepositoryImpl(
     private val deckQueries = database.deckQueries
     private val deckVocabQueries = database.deckVocabularyQueries
     
+    private fun Vocabulary.toModel(translations: List<ModelVocabularyTranslation> = emptyList()): ModelVocabulary =
+        ModelVocabulary(
+            id = id,
+            kanji = kanji,
+            hiragana = hiragana,
+            romaji = romaji,
+            jlptLevel = jlpt_level?.let { JlptLevel.valueOf(it) },
+            partOfSpeech = part_of_speech,
+            isActive = is_active == 1L,
+            createdBy = created_by,
+            createdAt = created_at,
+            updatedAt = updated_at,
+            jftBasic = jft_basic == 1L,
+            godanVerb = godan_verb == 1L,
+            ichidanVerb = ichidan_verb == 1L,
+            fukisoku = fukisoku == 1L,
+            iAdjective = i_adjective == 1L,
+            naAdjective = na_adjective == 1L,
+            jidoushi = jidoushi == 1L,
+            tadoushi = tadoushi == 1L,
+            verbCollocation = verb_collocation == 1L,
+            translations = translations
+        )
+
+    private fun List<Vocabulary>.withTranslations(): List<ModelVocabulary> {
+        if (isEmpty()) return emptyList()
+        val byVocab = vocabQueries.selectTranslations(map { it.id })
+            .executeAsList()
+            .groupBy { it.vocabulary_id }
+        return map { row -> row.toModel(byVocab[row.id].orEmpty().map { it.toModel() }) }
+    }
+
+    private fun VocabularyTranslation.toModel(): ModelVocabularyTranslation =
+        ModelVocabularyTranslation(
+            vocabularyId = vocabulary_id,
+            locale = locale,
+            meaning = meaning
+        )
+    
     override suspend fun getVocabularyById(id: Long): ModelVocabulary? = withContext(Dispatchers.IO) {
-        vocabQueries.selectById(id).executeAsOneOrNull()?.toModel()
+        vocabQueries.selectById(id).executeAsOneOrNull()?.let { row ->
+            row.toModel(vocabQueries.selectTranslationsByVocabularyId(id)
+                .executeAsList()
+                .map { it.toModel() })
+        }
     }
     
     override suspend fun getVocabularyByIds(ids: List<Long>): List<ModelVocabulary> = withContext(Dispatchers.IO) {
-        vocabQueries.selectByIds(ids).executeAsList().map { it.toModel() }
+        vocabQueries.selectByIds(ids).executeAsList().withTranslations()
     }
     
     override suspend fun getVocabIdsInDeck(deckId: Long): List<Long> = withContext(Dispatchers.IO) {
@@ -52,12 +97,12 @@ class VocabRepositoryImpl(
     }
     
     override suspend fun searchVocabulary(query: String, limit: Int): List<ModelVocabulary> = withContext(Dispatchers.IO) {
-        vocabQueries.searchByKanjiOrHiragana("%$query%", limit.toLong()).executeAsList().map { it.toModel() }
+        vocabQueries.searchByKanjiOrHiragana("%$query%", limit.toLong()).executeAsList().withTranslations()
     }
     
     override suspend fun getAllVocabulary(limit: Int, offset: Int): List<ModelVocabulary> = withContext(Dispatchers.IO) {
         // TODO: Implement pagination
-        vocabQueries.selectAll(limit.toLong(), offset.toLong()).executeAsList().map { it.toModel() }
+        vocabQueries.selectAll(limit.toLong(), offset.toLong()).executeAsList().withTranslations()
     }
     
     override suspend fun insertVocabulary(vocab: ModelVocabulary): Long = withContext(Dispatchers.IO) {
@@ -83,14 +128,20 @@ class VocabRepositoryImpl(
     }
     
     override fun observeVocabulary(vocabId: Long): Flow<ModelVocabulary?> {
-        return vocabQueries.observeById(vocabId).asFlow().map { it.executeAsOneOrNull()?.toModel() }
+        return vocabQueries.observeById(vocabId).asFlow().map {
+            it.executeAsOneOrNull()?.let { row ->
+                row.toModel(vocabQueries.selectTranslationsByVocabularyId(vocabId)
+                    .executeAsList()
+                    .map { t -> t.toModel() })
+            }
+        }
     }
     
     // Remote sync methods
     suspend fun pullVocabularyFromRemote(since: Long): List<ModelVocabulary> = withContext(Dispatchers.IO) {
         val response: HttpResponse = httpClient.get("$baseUrl/vocabulary?since=$since")
         if (response.status == HttpStatusCode.OK) {
-            response.body<List<ModelVocabulary>>()
+            response.body<List<SupabaseVocabularyRow>>().map { it.toModel() }
         } else {
             emptyList()
         }
@@ -104,28 +155,6 @@ class VocabRepositoryImpl(
         response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK
     }
 }
-
-private fun Vocabulary.toModel(): ModelVocabulary = ModelVocabulary(
-    id = id,
-    kanji = kanji,
-    hiragana = hiragana,
-    romaji = romaji,
-    jlptLevel = jlpt_level?.let { JlptLevel.valueOf(it) },
-    partOfSpeech = part_of_speech,
-    isActive = is_active == 1L,
-    createdBy = created_by,
-    createdAt = created_at,
-    updatedAt = updated_at,
-    jftBasic = jft_basic == 1L,
-    godanVerb = godan_verb == 1L,
-    ichidanVerb = ichidan_verb == 1L,
-    fukisoku = fukisoku == 1L,
-    iAdjective = i_adjective == 1L,
-    naAdjective = na_adjective == 1L,
-    jidoushi = jidoushi == 1L,
-    tadoushi = tadoushi == 1L,
-    verbCollocation = verb_collocation == 1L
-)
 
 internal fun ModelVocabulary.toEntity(): Vocabulary = Vocabulary(
     id = id,

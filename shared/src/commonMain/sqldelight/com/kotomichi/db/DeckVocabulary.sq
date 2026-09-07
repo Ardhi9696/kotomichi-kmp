@@ -4,8 +4,23 @@ FROM DeckVocabulary
 WHERE deck_id = :deckId
 ORDER BY order_in_deck;
 
+selectCountByDeck:
+SELECT deck_id, COUNT(*) AS total
+FROM DeckVocabulary
+GROUP BY deck_id;
+
 insert:
 INSERT OR REPLACE INTO DeckVocabulary VALUES ?;
+
+upsertLink:
+INSERT OR REPLACE INTO DeckVocabulary (deck_id, vocabulary_id, order_in_deck)
+VALUES (?, ?, ?);
+
+selectAll:
+SELECT * FROM DeckVocabulary;
+
+deleteAll:
+DELETE FROM DeckVocabulary;
 
 delete:
 DELETE FROM DeckVocabulary

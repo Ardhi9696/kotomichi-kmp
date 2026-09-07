@@ -23,24 +23,30 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 val androidModule = module {
     single { DbFactory.create(androidContext()) }
     
+    @OptIn(ExperimentalSerializationApi::class)
     single { HttpClient(Android) {
         install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
+            json(Json {
+                ignoreUnknownKeys = true
+                namingStrategy = JsonNamingStrategy.SnakeCase
+            })
         }
         install(Logging) {
             level = io.ktor.client.plugins.logging.LogLevel.BODY
         }
-        // Supabase headers for all requests
+        // Supabase headers for all requests (anon role comes from `apikey`;
+        // `Authorization` must be set per-request so user-data pulls use the user JWT)
         defaultRequest {
             header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-            header(HttpHeaders.Authorization, "Bearer ${BuildConfig.SUPABASE_ANON_KEY}")
             header("Content-Type", "application/json")
             header("Prefer", "return=representation")
         }
@@ -65,6 +71,7 @@ val androidModule = module {
         database = get(),
         httpClient = get(),
         baseUrl = supabaseAuthUrl,
+        supabaseRestUrl = supabaseRestUrl,
         context = androidContext()
     ) }
     

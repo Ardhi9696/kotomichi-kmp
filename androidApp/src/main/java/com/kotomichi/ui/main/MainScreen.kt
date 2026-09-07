@@ -3,6 +3,7 @@ package com.kotomichi.ui.main
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,6 +18,7 @@ import com.kotomichi.ui.components.KotomichiDestination
 import com.kotomichi.ui.components.KotomichiDialog
 import com.kotomichi.ui.components.KotomichiGlobalLoadingOverlay
 import com.kotomichi.usecase.AuthUseCase
+import com.kotomichi.usecase.GamificationUseCase
 import com.kotomichi.usecase.ReviewCardUseCase
 import kotlinx.coroutines.launch
 
@@ -28,6 +30,7 @@ fun MainScreen(
 ) {
     val authUseCase: AuthUseCase = get()
     val reviewUseCase: ReviewCardUseCase = get()
+    val gamificationUseCase: GamificationUseCase = remember { get() }
     val scope = rememberCoroutineScope()
     val user by authUseCase.currentUser.collectAsStateWithLifecycle(null)
     val dueCount by reviewUseCase.observeDueCount(user?.id ?: "").collectAsStateWithLifecycle(0)
@@ -35,7 +38,22 @@ fun MainScreen(
     var selected by rememberSaveable { mutableStateOf(KotomichiDestination.Home) }
     var showExitDialog by rememberSaveable { mutableStateOf(false) }
     var isLoggingOut by remember { mutableStateOf(false) }
-    val deckCatalog = rememberDeckCatalog(user?.id)
+    var showDebug by remember { mutableStateOf(false) }
+    var debugInfo by remember { mutableStateOf("") }
+    val catalogState = rememberDeckCatalog(user?.id)
+    val deckCatalog = catalogState.catalog
+
+    LaunchedEffect(showDebug) {
+        if (showDebug) {
+            debugInfo = buildDebugInfo(user, dueCount, deckCatalog)
+        }
+    }
+
+    val currentLevel = user?.currentLevel ?: 1
+    val totalExp = user?.totalExp ?: 0L
+    val nextLevelExp = gamificationUseCase.calculateExpForLevel(currentLevel + 1)
+    val currentLevelExp = gamificationUseCase.calculateExpForLevel(currentLevel)
+    val expProgress = gamificationUseCase.calculateExpProgress(currentLevel, totalExp)
 
     BackHandler {
         showExitDialog = true
@@ -46,7 +64,13 @@ fun MainScreen(
             if (selected == KotomichiDestination.Home) {
                 HomeTopBar(
                     userName = user?.name ?: "",
-                    onNotificationsClick = {}
+                    level = currentLevel,
+                    totalExp = totalExp,
+                    currentLevelExp = currentLevelExp,
+                    nextLevelExp = nextLevelExp,
+                    expProgress = expProgress,
+                    onNotificationsClick = {},
+                    onDebugTap = { showDebug = true }
                 )
             }
         },
@@ -63,8 +87,7 @@ fun MainScreen(
                 user = user,
                 deckCatalog = deckCatalog,
                 dueCount = dueCount,
-                onNavigateToLearn = onNavigateToLearnDeck,
-                onNavigateToReview = onNavigateToReview
+                onRefresh = { scope.launch { catalogState.refresh() } }
             )
             KotomichiDestination.Belajar -> StudyHubTab(
                 paddingValues = paddingValues,
@@ -108,5 +131,9 @@ fun MainScreen(
             },
             onDismiss = { showExitDialog = false }
         )
+    }
+
+    if (showDebug) {
+        DebugInfoDialog(info = debugInfo, onDismiss = { showDebug = false })
     }
 }

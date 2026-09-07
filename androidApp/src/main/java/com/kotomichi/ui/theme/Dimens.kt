@@ -18,4 +18,7 @@ object KotomichiDimens {
     val buttonSpinnerStroke = 2.dp
     val avatarSize = 44.dp
     val heroSwitchHeight = 72.dp
+    val splashLogoSize = 96.dp
+    val splashTaglineMaxWidth = 240.dp
+    val topBarProgressWidth = 136.dp
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ fun DeckItem(
     onClick: () -> Unit
 ) {
     val mastery = progress?.masteryPercent ?: 0.0
+    val vocabCount = progress?.totalVocab ?: deck.vocabularyCount
     val isUnlocked = progress?.averageRetrievability ?: 0.0 >= 0.90 || deck.orderIndex == 1
 
     KotomichiCard(
@@ -42,14 +44,14 @@ fun DeckItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = deck.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "JLPT ${deck.jlptLevel?.name ?: ""}",
+                        text = deck.subtitle ?: "JLPT ${deck.jlptLevel?.name ?: ""}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -60,6 +62,23 @@ fun DeckItem(
                         imageVector = Icons.Filled.Lock,
                         contentDescription = "Terkunci",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.padding(start = KotomichiSpacing.md)
+                ) {
+                    Text(
+                        text = "$vocabCount",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "kosakata",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

@@ -23,6 +23,7 @@ interface DeckRepository {
     suspend fun getDeckById(id: Long): Deck?
     suspend fun getPublishedDecks(): List<Deck>
     suspend fun getAllDecks(): List<Deck>
+    suspend fun getVocabularyCount(): Int
     suspend fun getDecksByJlptLevel(level: com.kotomichi.model.JlptLevel): List<Deck>
     suspend fun insertDeck(deck: Deck): Long
     suspend fun updateDeck(deck: Deck)

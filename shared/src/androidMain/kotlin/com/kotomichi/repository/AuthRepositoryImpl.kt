@@ -26,6 +26,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
@@ -42,6 +43,7 @@ class AuthRepositoryImpl(
     private val database: KotomichiDatabase,
     private val httpClient: HttpClient,
     private val baseUrl: String,
+    private val supabaseRestUrl: String,
     private val context: Context
 ) : AuthRepository {
 
@@ -150,6 +152,7 @@ class AuthRepositoryImpl(
             }
             saveTokens(tokens.accessToken, tokens.refreshToken, session.user?.id)
             session.user?.let { storeSupabaseUser(it) }
+            runCatching { syncRemoteProfile() }
             tokens
         } else {
             throw Exception("Login gagal: ${extractErrorMessage(response)}")
@@ -174,6 +177,7 @@ class AuthRepositoryImpl(
             val tokens = session.toTokens()
             saveTokens(tokens.accessToken, tokens.refreshToken, session.user?.id)
             session.user?.let { storeSupabaseUser(it) }
+            runCatching { syncRemoteProfile() }
             tokens
         } else {
             throw Exception("Registrasi gagal: ${extractErrorMessage(response)}")
@@ -276,6 +280,18 @@ class AuthRepositoryImpl(
     override suspend fun publishProfile(profile: ModelUserProfile) = withContext(Dispatchers.IO) {
         persistUser(profile)
         _currentUser.value = profile
+    }
+
+    override suspend fun syncRemoteProfile() = withContext(Dispatchers.IO) {
+        val token = accessToken ?: return@withContext
+        val uid = userId ?: return@withContext
+        val response = httpClient.get("$supabaseRestUrl/user_profile?id=eq.$uid&limit=1") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        if (response.status != HttpStatusCode.OK) return@withContext
+        val rows = runCatching { response.body<List<SupabaseUserProfileRow>>() }.getOrDefault(emptyList())
+        val row = rows.firstOrNull() ?: return@withContext
+        publishProfile(row.toModelProfile())
     }
 
     private suspend fun fetchAndStoreUser() = withContext(Dispatchers.IO) {

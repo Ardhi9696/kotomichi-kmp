@@ -28,7 +28,7 @@ fun DeckListSection(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Daftar Bab",
+                text = "Materi",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )

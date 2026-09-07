@@ -15,3 +15,12 @@ insertAndReturnId:
 INSERT INTO ReviewLog (user_id, vocabulary_id, direction, is_new, correctness, elapsed_ms, rating, stability_before, stability_after, difficulty_before, difficulty_after, retrievability_before, reviewed_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
+
+insertWithRemoteId:
+INSERT OR REPLACE INTO ReviewLog (id, user_id, vocabulary_id, direction, is_new, correctness, elapsed_ms, rating, stability_before, stability_after, difficulty_before, difficulty_after, retrievability_before, reviewed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectMaxId:
+SELECT COALESCE(MAX(id), 0)
+FROM ReviewLog
+WHERE user_id = :userId;

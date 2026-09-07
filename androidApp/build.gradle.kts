@@ -15,8 +15,8 @@ android {
         applicationId = "com.kotomichi.app"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "2.0.0"
+        versionCode = 7
+        versionName = "2.0.7"
 
         val props = Properties().apply {
             val f = rootProject.file("local.properties")

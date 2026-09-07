@@ -31,6 +31,7 @@ class SyncRepositoryImpl(
     
     private val vocabQueries = database.vocabularyQueries
     private val deckQueries = database.deckQueries
+    private val deckVocabQueries = database.deckVocabularyQueries
     private val srsQueries = database.srsProgressQueries
     private val reviewQueries = database.reviewLogQueries
     private val userQueries = database.userProfileQueries
@@ -58,6 +59,11 @@ class SyncRepositoryImpl(
             val deckResult = pullDecks()
             totalSynced += deckResult.itemsSynced
             totalFailed += deckResult.itemsFailed
+
+            // Pull deck-vocabulary links
+            val linkResult = pullDeckLinks()
+            totalSynced += linkResult.itemsSynced
+            totalFailed += linkResult.itemsFailed
             
             // Pull config
             val configResult = pullConfig()
@@ -92,7 +98,7 @@ class SyncRepositoryImpl(
         var totalFailed = 0
 
         try {
-            val token = authRepository.getAccessToken()
+            var token = authRepository.getAccessToken()
             if (token.isNullOrBlank()) {
                 throw Exception("Tidak ada sesi aktif")
             }
@@ -100,8 +106,19 @@ class SyncRepositoryImpl(
 
             val start = System.currentTimeMillis()
 
-            val profile = pullRemoteProfile(token)
-            if (profile != null) {
+            var profilePull = pullRemoteProfile(token)
+            if (profilePull != null && !profilePull.authorized) {
+                runCatching { authRepository.refreshToken() }
+                token = authRepository.getAccessToken()
+                if (token.isNullOrBlank()) {
+                    throw Exception("Sesi berakhir, silakan masuk kembali")
+                }
+                profilePull = pullRemoteProfile(token)
+            }
+            if (profilePull == null) {
+                throw Exception("Tidak ada sesi aktif")
+            }
+            profilePull.profile?.let { profile ->
                 authRepository.publishProfile(profile)
                 totalSynced += 1
             }
@@ -127,13 +144,14 @@ class SyncRepositoryImpl(
 
             val logs = pullRemoteReviewLogs(token)
             val latestLocal = try {
-                reviewQueries.selectByUser(uid, 1L, 0L).executeAsOneOrNull()?.reviewed_at ?: 0L
+                reviewQueries.selectMaxId(uid).executeAsOne()
             } catch (e: Exception) {
                 0L
             }
-            logs.filter { it.reviewedAt > latestLocal }.forEach { log ->
+            logs.filter { it.id > latestLocal }.forEach { log ->
                 try {
-                    reviewQueries.insertAndReturnId(
+                    reviewQueries.insertWithRemoteId(
+                        id = log.id,
                         user_id = log.userId,
                         vocabulary_id = log.vocabularyId,
                         direction = log.direction.ordinal.toLong(),
@@ -147,7 +165,7 @@ class SyncRepositoryImpl(
                         difficulty_after = log.difficultyAfter,
                         retrievability_before = log.retrievabilityBefore,
                         reviewed_at = log.reviewedAt
-                    ).executeAsOne()
+                    )
                     totalSynced += 1
                 } catch (e: Exception) {
                     totalFailed += 1
@@ -223,7 +241,7 @@ class SyncRepositoryImpl(
         val response = httpClient.get("$baseUrl/vocabulary?since=$since")
         
         if (response.status == HttpStatusCode.OK) {
-            response.body<List<Vocabulary>>()
+            response.body<List<SupabaseVocabularyRow>>().map { it.toModel() }
         } else {
             emptyList()
         }
@@ -233,7 +251,7 @@ class SyncRepositoryImpl(
         val response = httpClient.get("$baseUrl/decks?since=$since")
         
         if (response.status == HttpStatusCode.OK) {
-            response.body<List<Deck>>()
+            response.body<List<SupabaseDeckRow>>().map { it.toModel() }
         } else {
             emptyList()
         }
@@ -271,12 +289,21 @@ class SyncRepositoryImpl(
     private suspend fun pushProfile(): SyncResult = SyncResult(success = true, message = "Profile synced", itemsSynced = 1)
     
     private suspend fun pullVocabulary(): SyncResult = withContext(Dispatchers.IO) {
-        val response = httpClient.get("$baseUrl/vocabulary")
+        val response = httpClient.get("$baseUrl/vocabulary?select=*,vocabulary_translations(*)")
         
         if (response.status == HttpStatusCode.OK) {
-            val vocabList = response.body<List<Vocabulary>>()
+            val vocabList = response.body<List<SupabaseVocabularyRow>>()
             vocabList.forEach { vocab ->
-                vocabQueries.insert(vocab.toEntity())
+                vocabQueries.insert(vocab.toModel().toEntity())
+                val id = vocab.id
+                vocabQueries.deleteTranslationsByVocabularyId(id)
+                vocab.vocabulary_translations.forEach { tr ->
+                    vocabQueries.insertTranslation(
+                        vocabulary_id = tr.vocabulary_id,
+                        locale = tr.locale,
+                        meaning = tr.meaning
+                    )
+                }
             }
             SyncResult(success = true, message = "Vocabulary synced", itemsSynced = vocabList.size)
         } else {
@@ -288,11 +315,30 @@ class SyncRepositoryImpl(
         val response = httpClient.get("$baseUrl/decks")
         
         if (response.status == HttpStatusCode.OK) {
-            val deckList = response.body<List<Deck>>()
-            deckList.forEach { deck ->
-                deckQueries.insert(deck.toEntity())
+            val deckList = response.body<List<SupabaseDeckRow>>()
+            deckList.forEach { row ->
+                deckQueries.insert(row.toModel().toEntity())
             }
             SyncResult(success = true, message = "Decks synced", itemsSynced = deckList.size)
+        } else {
+            SyncResult(success = false, message = "Failed", itemsFailed = 1)
+        }
+    }
+
+    private suspend fun pullDeckLinks(): SyncResult = withContext(Dispatchers.IO) {
+        val response = httpClient.get("$baseUrl/deck_vocabulary")
+        
+        if (response.status == HttpStatusCode.OK) {
+            val links = response.body<List<SupabaseDeckVocabularyRow>>()
+            deckVocabQueries.deleteAll()
+            links.forEach { link ->
+                deckVocabQueries.upsertLink(
+                    deck_id = link.deck_id,
+                    vocabulary_id = link.vocabulary_id,
+                    order_in_deck = link.order_in_deck
+                )
+            }
+            SyncResult(success = true, message = "Deck links synced", itemsSynced = links.size)
         } else {
             SyncResult(success = false, message = "Failed", itemsFailed = 1)
         }
@@ -322,31 +368,23 @@ class SyncRepositoryImpl(
     
     override fun observeLastSyncTime(): Flow<Long> = _lastSyncTime.asStateFlow()
 
-    private suspend fun pullRemoteProfile(token: String): com.kotomichi.model.UserProfile? = withContext(Dispatchers.IO) {
+    private class ProfilePull(val profile: com.kotomichi.model.UserProfile?, val authorized: Boolean)
+
+    private suspend fun pullRemoteProfile(token: String): ProfilePull? = withContext(Dispatchers.IO) {
         val uid = authRepository.currentUser.firstOrNull()?.id ?: return@withContext null
         val response = httpClient.get("$baseUrl/user_profile?id=eq.$uid&limit=1") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
 
-        if (response.status != HttpStatusCode.OK) return@withContext null
-        val rows = response.body<List<SupabaseUserProfileRow>>()
-        val row = rows.firstOrNull() ?: return@withContext null
+        if (response.status == HttpStatusCode.Unauthorized || response.status == HttpStatusCode.Forbidden) {
+            return@withContext ProfilePull(null, authorized = false)
+        }
+        if (response.status != HttpStatusCode.OK) return@withContext ProfilePull(null, authorized = true)
+        val rows = runCatching { response.body<List<SupabaseUserProfileRow>>() }
+            .getOrElse { return@withContext ProfilePull(null, authorized = true) }
+        val row = rows.firstOrNull() ?: return@withContext ProfilePull(null, authorized = true)
 
-        com.kotomichi.model.UserProfile(
-            id = row.id,
-            displayName = row.display_name ?: "",
-            role = com.kotomichi.model.UserRole.entries.firstOrNull { it.name == row.role } ?: com.kotomichi.model.UserRole.USER,
-            preferredLocale = row.preferred_locale ?: "id",
-            level = row.level ?: 1,
-            exp = row.exp ?: 0,
-            lastReviewDate = null,
-            currentStreak = row.current_streak ?: 0,
-            longestStreak = row.longest_streak ?: 0,
-            createdAt = parseSupabaseTimestamp(row.created_at),
-            updatedAt = parseSupabaseTimestamp(row.updated_at),
-            theme = row.theme ?: "system",
-            lastSeenAt = parseSupabaseTimestamp(row.last_seen_at)
-        )
+        ProfilePull(profile = row.toModelProfile(), authorized = true)
     }
 
     private suspend fun pullRemoteProgress(token: String): List<com.kotomichi.model.SrsProgress> = withContext(Dispatchers.IO) {

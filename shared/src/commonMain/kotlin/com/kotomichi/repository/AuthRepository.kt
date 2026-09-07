@@ -26,6 +26,7 @@ interface AuthRepository {
     suspend fun deleteUser(userId: String)
     suspend fun getAccessToken(): String?
     suspend fun publishProfile(profile: UserProfile)
+    suspend fun syncRemoteProfile()
     
     fun observeCurrentUser(): Flow<UserProfile?>
 }

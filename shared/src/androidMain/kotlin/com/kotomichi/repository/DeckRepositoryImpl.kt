@@ -15,21 +15,41 @@ class DeckRepositoryImpl(
 ) : DeckRepository {
     
     private val deckQueries = database.deckQueries
+    private val deckVocabQueries = database.deckVocabularyQueries
+    private val vocabQueries = database.vocabularyQueries
+
+    private fun attachVocabCount(deck: ModelDeck): ModelDeck {
+        val count = runCatching {
+            deckVocabQueries.selectCountByDeck().executeAsList()
+                .firstOrNull { it.deck_id == deck.id }?.total?.toInt()
+        }.getOrNull()
+        return if (count != null) deck.copy(vocabularyCount = count) else deck
+    }
     
     override suspend fun getDeckById(id: Long): ModelDeck? = withContext(Dispatchers.IO) {
-        deckQueries.selectById(id).executeAsOneOrNull()?.toModel()
+        deckQueries.selectById(id).executeAsOneOrNull()?.toModel()?.let { attachVocabCount(it) }
     }
     
     override suspend fun getPublishedDecks(): List<ModelDeck> = withContext(Dispatchers.IO) {
+        val counts = runCatching { deckVocabQueries.selectCountByDeck().executeAsList() }.getOrNull()
+        val countByDeck = counts?.associate { it.deck_id to it.total.toInt() } ?: emptyMap()
         deckQueries.selectPublished().executeAsList().map { it.toModel() }
+            .map { if (countByDeck[it.id] != null) it.copy(vocabularyCount = countByDeck[it.id]!!) else it }
     }
     
     override suspend fun getAllDecks(): List<ModelDeck> = withContext(Dispatchers.IO) {
+        val counts = runCatching { deckVocabQueries.selectCountByDeck().executeAsList() }.getOrNull()
+        val countByDeck = counts?.associate { it.deck_id to it.total.toInt() } ?: emptyMap()
         deckQueries.selectAll().executeAsList().map { it.toModel() }
+            .map { if (countByDeck[it.id] != null) it.copy(vocabularyCount = countByDeck[it.id]!!) else it }
     }
     
     override suspend fun getDecksByJlptLevel(level: JlptLevel): List<ModelDeck> = withContext(Dispatchers.IO) {
-        deckQueries.selectByJlptLevel(level.name).executeAsList().map { it.toModel() }
+        deckQueries.selectByJlptLevel(level.name).executeAsList().map { it.toModel().let(::attachVocabCount) }
+    }
+
+    override suspend fun getVocabularyCount(): Int = withContext(Dispatchers.IO) {
+        runCatching { vocabQueries.selectCount().executeAsOne().toInt() }.getOrDefault(0)
     }
     
     override suspend fun insertDeck(deck: ModelDeck): Long = withContext(Dispatchers.IO) {
@@ -51,11 +71,13 @@ class DeckRepositoryImpl(
     }
     
     override fun observeDeck(deckId: Long): Flow<ModelDeck?> {
-        return deckQueries.observeById(deckId).asFlow().map { it.executeAsOneOrNull()?.toModel() }
+        return deckQueries.observeById(deckId).asFlow().map { it.executeAsOneOrNull()?.toModel()?.let(::attachVocabCount) }
     }
     
     override fun observePublishedDecks(): Flow<List<ModelDeck>> {
-        return deckQueries.observePublished().asFlow().map { it.executeAsList().map { m -> m.toModel() } }
+        return deckQueries.observePublished().asFlow().map {
+            it.executeAsList().map { m -> m.toModel().let(::attachVocabCount) }
+        }
     }
 }
 

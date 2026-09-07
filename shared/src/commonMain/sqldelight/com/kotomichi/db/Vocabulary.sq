@@ -108,6 +108,9 @@ DELETE FROM Vocabulary WHERE id = :id;
 selectByIds:
 SELECT * FROM Vocabulary WHERE id IN :ids;
 
+selectCount:
+SELECT COUNT(*) AS total FROM Vocabulary;
+
 searchByKanjiOrHiragana:
 SELECT *
 FROM Vocabulary
@@ -123,3 +126,16 @@ LIMIT :limit OFFSET :offset;
 
 insert:
 INSERT OR REPLACE INTO Vocabulary VALUES ?;
+
+insertTranslation:
+INSERT OR REPLACE INTO VocabularyTranslation (vocabulary_id, locale, meaning)
+VALUES (?, ?, ?);
+
+deleteTranslationsByVocabularyId:
+DELETE FROM VocabularyTranslation WHERE vocabulary_id = :vocabularyId;
+
+selectTranslations:
+SELECT * FROM VocabularyTranslation WHERE vocabulary_id IN :ids;
+
+selectTranslationsByVocabularyId:
+SELECT * FROM VocabularyTranslation WHERE vocabulary_id = :vocabularyId;
