@@ -219,23 +219,29 @@ class SyncRepositoryImpl(
             val progressResult = pushProgress()
             totalSynced += progressResult.itemsSynced
             totalFailed += progressResult.itemsFailed
-            
+
             // Push review logs
             val reviewResult = pushReviewLogs()
             totalSynced += reviewResult.itemsSynced
             totalFailed += reviewResult.itemsFailed
-            
+
             // Push profile
             val profileResult = pushProfile()
             totalSynced += profileResult.itemsSynced
             totalFailed += profileResult.itemsFailed
-            
+
+            val sections = buildList {
+                add(sectionDiagnostic("progress", progressResult))
+                add(sectionDiagnostic("review", reviewResult))
+                add(sectionDiagnostic("profil", profileResult))
+            }.joinToString("; ")
+
             _syncStatus.value = if (totalFailed > 0) SyncStatus.FAILED else SyncStatus.SUCCESS
-            _lastSyncDiagnostics.value = if (totalFailed == 0) "Data berhasil dikirim" else "Sebagian data gagal dikirim"
-            
+            _lastSyncDiagnostics.value = if (totalFailed == 0) "Data berhasil dikirim [$sections]" else "Sebagian data gagal dikirim [$sections]"
+
             SyncResult(
                 success = totalFailed == 0,
-                message = if (totalFailed == 0) "Data berhasil dikirim" else "Sebagian data gagal dikirim",
+                message = if (totalFailed == 0) "Data berhasil dikirim [$sections]" else "Sebagian data gagal dikirim [$sections]",
                 itemsSynced = totalSynced,
                 itemsFailed = totalFailed
             )
@@ -306,6 +312,7 @@ class SyncRepositoryImpl(
 
         var synced = 0
         var failed = 0
+        var firstErrorStatus: Int? = null
         progressList.chunked(200).forEach { chunk ->
             val rows = chunk.map { p ->
                 SupabaseSrsProgress(
@@ -329,11 +336,20 @@ class SyncRepositoryImpl(
                 contentType(ContentType.Application.Json)
                 setBody(rows)
             }
-            if (response.status.isSuccess()) synced += chunk.size else failed += chunk.size
+            if (response.status.isSuccess()) {
+                synced += chunk.size
+            } else {
+                failed += chunk.size
+                if (firstErrorStatus == null) firstErrorStatus = response.status.value
+            }
+        }
+        val progressMessage = buildString {
+            append(if (failed == 0) "Progress synced" else "Sebagian progress gagal dikirim")
+            if (failed > 0 && firstErrorStatus != null) append(" (http $firstErrorStatus)")
         }
         SyncResult(
             success = failed == 0,
-            message = if (failed == 0) "Progress synced" else "Sebagian progress gagal dikirim",
+            message = progressMessage,
             itemsSynced = synced,
             itemsFailed = failed
         )
@@ -346,6 +362,7 @@ class SyncRepositoryImpl(
 
         var synced = 0
         var failed = 0
+        var firstErrorStatus: Int? = null
         logs.chunked(200).forEach { chunk ->
             val rows = chunk.map { l ->
                 SupabaseReviewLog(
@@ -371,11 +388,20 @@ class SyncRepositoryImpl(
                 contentType(ContentType.Application.Json)
                 setBody(rows)
             }
-            if (response.status.isSuccess()) synced += chunk.size else failed += chunk.size
+            if (response.status.isSuccess()) {
+                synced += chunk.size
+            } else {
+                failed += chunk.size
+                if (firstErrorStatus == null) firstErrorStatus = response.status.value
+            }
+        }
+        val reviewMessage = buildString {
+            append(if (failed == 0) "Review logs synced" else "Sebagian review log gagal dikirim")
+            if (failed > 0 && firstErrorStatus != null) append(" (http $firstErrorStatus)")
         }
         SyncResult(
             success = failed == 0,
-            message = if (failed == 0) "Review logs synced" else "Sebagian review log gagal dikirim",
+            message = reviewMessage,
             itemsSynced = synced,
             itemsFailed = failed
         )
@@ -460,6 +486,10 @@ class SyncRepositoryImpl(
             ?: return SyncResult(success = false, message = "Tidak ada sesi aktif", itemsFailed = 1)
         return pushProfile(profile)
     }
+
+    private fun sectionDiagnostic(name: String, r: SyncResult): String =
+        if (r.success) "$name OK (${r.itemsSynced})"
+        else "$name GAGAL (sync ${r.itemsSynced}, fail ${r.itemsFailed})${if (r.message.isNotBlank()) " - ${r.message}" else ""}"
 
     private fun readMasterWatermark(): Long? = try {
         configQueries.selectByKey(MASTER_WATERMARK_KEY).executeAsOneOrNull()
