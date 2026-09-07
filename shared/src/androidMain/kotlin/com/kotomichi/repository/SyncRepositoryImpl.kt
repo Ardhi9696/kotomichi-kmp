@@ -573,6 +573,10 @@ class SyncRepositoryImpl(
     
     override fun observeLastSyncTime(): Flow<Long> = _lastSyncTime.asStateFlow()
 
+    override suspend fun masterSyncSince(): Long? = withContext(Dispatchers.IO) { readMasterWatermark() }
+
+    override suspend fun pendingReviewLogIds(): List<Long> = withContext(Dispatchers.IO) { readPendingReviewLogIds() }
+
     private class ProfilePull(val profile: com.kotomichi.model.UserProfile?, val authorized: Boolean)
 
     private suspend fun pullRemoteProfile(token: String): ProfilePull? = withContext(Dispatchers.IO) {
