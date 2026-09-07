@@ -36,12 +36,17 @@ import com.kotomichi.ui.theme.KotomichiSpacing
  * Kartu aksi individual untuk menu belajar.
  * @param menu Menu yang ditampilkan
  * @param onClick Callback saat kartu diklik
+ * @param modifier Modifier untuk layout (contoh: weight(1f) untuk grid)
  */
 @Composable
-fun ActionCard(menu: LearnMenu, onClick: () -> Unit) {
+fun ActionCard(
+    menu: LearnMenu,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f),
         shape = MaterialTheme.shapes.medium,

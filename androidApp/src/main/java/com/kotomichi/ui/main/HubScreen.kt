@@ -18,10 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,7 +71,6 @@ fun HubScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = KotomichiSpacing.lg, vertical = KotomichiSpacing.md),
         verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)
     ) {
@@ -112,21 +108,38 @@ fun HubScreen(
                     )
                 }
             }
+        }
 
-            // ── Grid aksi 2×2 ──
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm),
-                verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm),
-                modifier = Modifier.fillMaxWidth()
+        item {
+            // ── Grid aksi 2×2 (Column + Row, bukan LazyVerticalGrid) ──
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
             ) {
-                val menuList = com.kotomichi.ui.main.LearnMenu.entries.toList()
-                items(menuList.size) { index ->
-                    val menu = menuList[index]
-                    ActionCard(
-                        menu = menu,
-                        onClick = { onMenuClick(menu) }
-                    )
+                val menuList = LearnMenu.entries.toList()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
+                ) {
+                    menuList.take(2).forEach { menu ->
+                        ActionCard(
+                            menu = menu,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onMenuClick(menu) }
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
+                ) {
+                    menuList.drop(2).take(2).forEach { menu ->
+                        ActionCard(
+                            menu = menu,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onMenuClick(menu) }
+                        )
+                    }
                 }
             }
         }
