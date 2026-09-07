@@ -4,12 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,37 +48,44 @@ fun KotomichiCalendar(
     val days = generateSequence(startDate) { it.plusDays(1) }
         .takeWhile { !it.isAfter(maxDate) }
         .toList()
+    val weeks = days.chunked(7)
     val intensityByDate = activities.associate { it.date to it.intensity.coerceIn(0, 4) }
     val cellShape = MaterialTheme.shapes.extraSmall
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(7),
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.xs),
+    Column(
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.xs)
     ) {
-        items(days) { day ->
-            val intensity = intensityByDate[day] ?: 0
-            val alpha = when (intensity) {
-                0 -> 0f
-                1 -> 0.25f
-                2 -> 0.5f
-                3 -> 0.75f
-                else -> 1f
-            }
-            Box(
-                modifier = Modifier
-                    .aspectRatio(1f)
-                    .clip(cellShape)
-                    .background(
-                        color = if (intensity == 0) {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.primary.copy(alpha = alpha)
-                        }
+        weeks.forEach { week ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.xs)
+            ) {
+                week.forEach { day ->
+                    val intensity = intensityByDate[day] ?: 0
+                    val alpha = when (intensity) {
+                        0 -> 0f
+                        1 -> 0.25f
+                        2 -> 0.5f
+                        3 -> 0.75f
+                        else -> 1f
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .clip(cellShape)
+                            .background(
+                                color = if (intensity == 0) {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                                }
+                            )
+                            .clickable { onDayClick(day) }
                     )
-                    .clickable { onDayClick(day) }
-            )
+                }
+            }
         }
     }
 }
