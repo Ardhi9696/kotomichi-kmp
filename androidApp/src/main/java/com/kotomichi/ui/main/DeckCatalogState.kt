@@ -11,6 +11,7 @@ import com.kotomichi.model.Deck
 import com.kotomichi.model.DeckProgress
 import com.kotomichi.repository.DeckRepository
 import com.kotomichi.repository.SyncRepository
+import com.kotomichi.repository.SyncResult
 import com.kotomichi.usecase.DeckProgressUseCase
 import com.kotomichi.util.SyncTtlManager
 import kotlinx.coroutines.delay
@@ -48,8 +49,12 @@ class DeckCatalogState(
                 reloadLocal(null)
                 return
             }
-            val masterResult = syncRepository.pullMasterData()
-            val userResult = userId?.let { syncRepository.pullUserData() }
+            val masterResult = runCatching { syncRepository.pullMasterData() }
+                .getOrElse { SyncResult(success = false, message = "Sync master error: ${it.message}") }
+            val userResult = userId?.let {
+                runCatching { syncRepository.pullUserData() }
+                    .getOrElse { SyncResult(success = false, message = "Sync user error: ${it.message}") }
+            }
             val success = masterResult.success && (userResult?.success ?: true)
             val error = if (success) null else buildString {
                 if (!masterResult.success) append(masterResult.message)

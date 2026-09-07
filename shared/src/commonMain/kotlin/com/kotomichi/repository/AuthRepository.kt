@@ -25,6 +25,7 @@ interface AuthRepository {
     suspend fun changeRole(userId: String, role: UserRole)
     suspend fun deleteUser(userId: String)
     suspend fun getAccessToken(): String?
+    suspend fun currentUserId(): String?
     suspend fun publishProfile(profile: UserProfile)
     suspend fun syncRemoteProfile()
     

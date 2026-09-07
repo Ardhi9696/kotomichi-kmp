@@ -30,6 +30,7 @@ import com.kotomichi.repository.DeckRepository
 import com.kotomichi.repository.ProgressRepository
 import com.kotomichi.repository.SyncRepository
 import com.kotomichi.ui.theme.KotomichiSpacing
+import com.kotomichi.util.CrashCatcher
 import kotlinx.coroutines.flow.firstOrNull
 
 @Composable
@@ -149,6 +150,20 @@ suspend fun buildDebugInfo(user: UserProfile?, dueCount: Int, catalog: DeckCatal
         appendLine("diagnostics: ${syncRepository.lastSyncDiagnostics.value.ifBlank { "-" }}")
         appendLine("watermark master: ${if (watermark != null) fmtDateTime(watermark) else "belum ada (full pull)"}")
         appendLine("pending review (belum terkirim): ${pending.size}")
+        appendLine("")
+        appendLine("== RUNTIME ==")
+        val crash = runCatching { CrashCatcher.lastCrashLog() }.getOrNull()
+        if (!crash.isNullOrBlank()) {
+            appendLine("--- crash terakhir ---")
+            appendLine(crash)
+        } else {
+            appendLine("crash terakhir: tidak ada")
+        }
+        val runtimeTail = runCatching { CrashCatcher.recentRuntimeLog(30) }.getOrNull()
+        if (!runtimeTail.isNullOrBlank()) {
+            appendLine("--- log runtime (tail) ---")
+            appendLine(runtimeTail)
+        }
     }
 }
 

@@ -116,7 +116,7 @@ class SyncRepositoryImpl(
             if (token.isNullOrBlank()) {
                 throw Exception("Tidak ada sesi aktif")
             }
-            val uid = authRepository.currentUser.firstOrNull()?.id ?: throw Exception("Tidak ada sesi aktif")
+            val uid = authRepository.currentUserId() ?: throw Exception("Tidak ada sesi aktif")
 
             val start = System.currentTimeMillis()
 
@@ -440,7 +440,7 @@ class SyncRepositoryImpl(
     }
 
     private suspend fun pushProgress(): SyncResult {
-        val uid = authRepository.currentUser.firstOrNull()?.id
+        val uid = authRepository.currentUserId()
             ?: return SyncResult(success = false, message = "Tidak ada sesi aktif", itemsFailed = 1)
         val all = try {
             srsQueries.selectByUser(uid).executeAsList().map { it.toModel() }
@@ -610,7 +610,7 @@ class SyncRepositoryImpl(
     private class ProfilePull(val profile: com.kotomichi.model.UserProfile?, val authorized: Boolean)
 
     private suspend fun pullRemoteProfile(token: String): ProfilePull? = withContext(Dispatchers.IO) {
-        val uid = authRepository.currentUser.firstOrNull()?.id ?: return@withContext null
+        val uid = authRepository.currentUserId() ?: return@withContext null
         val response = httpClient.get("$baseUrl/user_profile?id=eq.$uid&limit=1") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
@@ -627,7 +627,7 @@ class SyncRepositoryImpl(
     }
 
     private suspend fun pullRemoteProgress(token: String): List<com.kotomichi.model.SrsProgress> = withContext(Dispatchers.IO) {
-        val uid = authRepository.currentUser.firstOrNull()?.id ?: return@withContext emptyList()
+        val uid = authRepository.currentUserId() ?: return@withContext emptyList()
         val response = httpClient.get("$baseUrl/srs_progress?user_id=eq.$uid") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
@@ -652,7 +652,7 @@ class SyncRepositoryImpl(
     }
 
     private suspend fun pullRemoteReviewLogs(token: String): List<com.kotomichi.model.ReviewLog> = withContext(Dispatchers.IO) {
-        val uid = authRepository.currentUser.firstOrNull()?.id ?: return@withContext emptyList()
+        val uid = authRepository.currentUserId() ?: return@withContext emptyList()
         val response = httpClient.get("$baseUrl/review_log?user_id=eq.$uid&order=reviewed_at.asc") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }

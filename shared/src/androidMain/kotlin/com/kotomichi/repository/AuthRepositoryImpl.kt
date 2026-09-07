@@ -296,6 +296,10 @@ class AuthRepositoryImpl(
         accessToken
     }
 
+    override suspend fun currentUserId(): String? = withContext(Dispatchers.IO) {
+        _currentUser.value?.id ?: userId
+    }
+
     override suspend fun publishProfile(profile: ModelUserProfile) = withContext(Dispatchers.IO) {
         persistUser(profile)
         _currentUser.value = profile
