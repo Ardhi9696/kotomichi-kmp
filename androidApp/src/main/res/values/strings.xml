@@ -27,7 +27,7 @@
     <string name="logout">Keluar</string>
     <string name="welcome_back">Selamat datang kembali, %s!</string>
     <string name="level">Level %d</string>
-    <string name="exp_progress">%d / %d EXP</string>
+    <string name="exp_progress">%1$d / %2$d EXP</string>
     <string name="streak_days">%d hari streak</string>
     <string name="due_cards">%d kartu siap review</string>
     <string name="no_due_cards">Tidak ada kartu review hari ini</string>

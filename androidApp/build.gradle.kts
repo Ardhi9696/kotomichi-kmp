@@ -57,7 +57,7 @@ android {
         jvmTarget = "21"
     }
 
-    packagingOptions {
+    packaging {
         resources {
             excludes += "/META-INF/*"
         }

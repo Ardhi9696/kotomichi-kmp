@@ -17,9 +17,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.Translate
@@ -248,7 +248,7 @@ private fun MateriInfoCard(totalDeck: Int, totalVocabulary: Int) {
                 horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.MenuBook,
+                    imageVector = Icons.AutoMirrored.Rounded.MenuBook,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -266,7 +266,7 @@ private fun MateriInfoCard(totalDeck: Int, totalVocabulary: Int) {
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             InfoStatRow(
-                icon = Icons.Rounded.MenuBook,
+                icon = Icons.AutoMirrored.Rounded.MenuBook,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 label = "Total Deck",
                 value = "$totalDeck bab"
