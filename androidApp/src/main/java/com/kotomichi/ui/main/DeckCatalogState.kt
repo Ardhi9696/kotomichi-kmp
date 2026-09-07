@@ -12,6 +12,7 @@ import com.kotomichi.model.DeckProgress
 import com.kotomichi.repository.DeckRepository
 import com.kotomichi.repository.SyncRepository
 import com.kotomichi.usecase.DeckProgressUseCase
+import com.kotomichi.util.SyncTtlManager
 import kotlinx.coroutines.delay
 
 private const val PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000L
@@ -38,11 +39,15 @@ class DeckCatalogState(
 
     private var isSynchronizing = false
 
-    suspend fun sync(showSkeleton: Boolean) {
+    suspend fun sync(showSkeleton: Boolean, force: Boolean = false) {
         if (isSynchronizing) return
         isSynchronizing = true
         catalog = catalog.copy(isSyncing = !showSkeleton, isLoading = showSkeleton, loadError = null)
         try {
+            if (!force && !SyncTtlManager.isStale(SyncTtlManager.TTL_ON_RESUME_MS)) {
+                reloadLocal(null)
+                return
+            }
             val masterResult = syncRepository.pullMasterData()
             val userResult = userId?.let { syncRepository.pullUserData() }
             val success = masterResult.success && (userResult?.success ?: true)
@@ -53,6 +58,7 @@ class DeckCatalogState(
                     append(it.message)
                 }
             }.ifBlank { null }
+            if (success) SyncTtlManager.markSynced()
             reloadLocal(error)
         } finally {
             catalog = catalog.copy(isSyncing = false)
@@ -62,11 +68,11 @@ class DeckCatalogState(
 
     suspend fun refresh() {
         if (catalog.isLoading) {
-            sync(showSkeleton = true)
+            sync(showSkeleton = true, force = true)
             return
         }
         catalog = catalog.copy(isRefreshing = true)
-        sync(showSkeleton = false)
+        sync(showSkeleton = false, force = true)
         catalog = catalog.copy(isRefreshing = false)
     }
 
