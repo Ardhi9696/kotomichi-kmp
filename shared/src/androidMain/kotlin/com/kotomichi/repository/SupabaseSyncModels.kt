@@ -1,6 +1,52 @@
 package com.kotomichi.repository
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+
+internal const val PENDING_REVIEW_LOG_KEY = "pending_review_log_ids"
+internal const val MASTER_WATERMARK_KEY = "master_sync_since"
+
+private val pendingJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+internal fun encodeLongList(items: List<Long>): String = pendingJson.encodeToString(items)
+
+internal fun decodeLongList(json: String?): List<Long> {
+    if (json.isNullOrBlank()) return emptyList()
+    return try {
+        pendingJson.decodeFromString<List<Long>>(json)
+    } catch (e: Exception) {
+        emptyList()
+    }
+}
+
+internal fun formatSupabaseTimestamp(epochMs: Long): String {
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
+    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+    return sdf.format(java.util.Date(epochMs))
+}
+
+internal fun formatSupabaseDate(epochMs: Long): String {
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+    return sdf.format(java.util.Date(epochMs))
+}
+
+/**
+ * Deterministic, always-negative id derived from review content.
+ * Sends review logs to Supabase with a stable negative id so that re-pushes
+ * (after a partial failure) are ignored via the review_log PK (ignore-duplicates),
+ * while never colliding with server-side positive sequence ids or with other users.
+ */
+internal fun reviewLogRemoteId(userId: String, vocabularyId: Long, direction: Int, reviewedAt: Long, rating: Int): Long {
+    val canonical = "$userId|$vocabularyId|$direction|$reviewedAt|$rating"
+    var hash = -3750763034362895579L
+    canonical.toByteArray(java.nio.charset.StandardCharsets.UTF_8).forEach { b ->
+        hash = (hash xor (b.toLong() and 0xff)) * 0x100000001b3L
+    }
+    val magnitude = if (hash == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(hash)
+    return if (magnitude == 0L) -1L else -magnitude
+}
 
 @Serializable
 internal data class SupabaseSrsProgress(

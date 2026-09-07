@@ -20,8 +20,12 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 
 class SyncRepositoryImpl(
     private val database: KotomichiDatabase,
@@ -54,28 +58,32 @@ class SyncRepositoryImpl(
         var totalFailed = 0
         
         try {
+            val since = readMasterWatermark()
             // Pull vocabulary
-            val vocabResult = pullVocabulary()
+            val vocabResult = pullVocabulary(since)
             totalSynced += vocabResult.itemsSynced
             totalFailed += vocabResult.itemsFailed
             
             // Pull decks
-            val deckResult = pullDecks()
+            val deckResult = pullDecks(since)
             totalSynced += deckResult.itemsSynced
             totalFailed += deckResult.itemsFailed
 
-            // Pull deck-vocabulary links
+            // Pull deck-vocabulary links (full refresh; table has no updated_at column)
             val linkResult = pullDeckLinks()
             totalSynced += linkResult.itemsSynced
             totalFailed += linkResult.itemsFailed
             
             // Pull config
-            val configResult = pullConfig()
+            val configResult = pullConfig(since)
             totalSynced += configResult.itemsSynced
             totalFailed += configResult.itemsFailed
             
             val serverTimestamp = System.currentTimeMillis()
             _lastSyncTime.value = serverTimestamp
+            if (totalFailed == 0) {
+                configQueries.upsert(MASTER_WATERMARK_KEY, serverTimestamp.toString(), null, null, serverTimestamp)
+            }
             configQueries.upsert("last_sync", serverTimestamp.toString(), null, null, serverTimestamp)            
             _syncStatus.value = if (totalFailed > 0) SyncStatus.FAILED else SyncStatus.SUCCESS
             _lastSyncDiagnostics.value = if (totalFailed == 0) "Master data tersinkron" else "Master data sebagian gagal"
@@ -292,28 +300,191 @@ class SyncRepositoryImpl(
     }
     
     override suspend fun pushProgress(progressList: List<SrsProgress>): SyncResult = withContext(Dispatchers.IO) {
-        // TODO: Implement batch push
-        SyncResult(success = true, message = "Progress synced", itemsSynced = progressList.size)
+        if (progressList.isEmpty()) return@withContext SyncResult(success = true, message = "Progress synced")
+        val token = authRepository.getAccessToken()
+        if (token.isNullOrBlank()) return@withContext SyncResult(success = false, message = "Tidak ada sesi aktif", itemsFailed = progressList.size)
+
+        var synced = 0
+        var failed = 0
+        progressList.chunked(200).forEach { chunk ->
+            val rows = chunk.map { p ->
+                SupabaseSrsProgress(
+                    user_id = p.userId,
+                    vocabulary_id = p.vocabularyId,
+                    direction = p.direction.ordinal + 1,
+                    stability = p.stability,
+                    difficulty = p.difficulty,
+                    retrievability = p.retrievability,
+                    due_at = formatSupabaseTimestamp(p.dueAt),
+                    last_review_at = p.lastReviewAt?.let { formatSupabaseTimestamp(it) },
+                    review_count = p.reviewCount,
+                    lapses = p.lapses,
+                    created_at = formatSupabaseTimestamp(p.createdAt),
+                    updated_at = formatSupabaseTimestamp(p.updatedAt)
+                )
+            }
+            val response = httpClient.post("$baseUrl/srs_progress") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                header("Prefer", "resolution=merge-duplicates")
+                contentType(ContentType.Application.Json)
+                setBody(rows)
+            }
+            if (response.status.isSuccess()) synced += chunk.size else failed += chunk.size
+        }
+        SyncResult(
+            success = failed == 0,
+            message = if (failed == 0) "Progress synced" else "Sebagian progress gagal dikirim",
+            itemsSynced = synced,
+            itemsFailed = failed
+        )
     }
     
     override suspend fun pushReviewLogs(logs: List<ReviewLog>): SyncResult = withContext(Dispatchers.IO) {
-        // TODO: Implement batch push
-        SyncResult(success = true, message = "Review logs synced", itemsSynced = logs.size)
+        if (logs.isEmpty()) return@withContext SyncResult(success = true, message = "Review logs synced")
+        val token = authRepository.getAccessToken()
+        if (token.isNullOrBlank()) return@withContext SyncResult(success = false, message = "Tidak ada sesi aktif", itemsFailed = logs.size)
+
+        var synced = 0
+        var failed = 0
+        logs.chunked(200).forEach { chunk ->
+            val rows = chunk.map { l ->
+                SupabaseReviewLog(
+                    id = reviewLogRemoteId(l.userId, l.vocabularyId, l.direction.ordinal, l.reviewedAt, l.rating.ordinal),
+                    user_id = l.userId,
+                    vocabulary_id = l.vocabularyId,
+                    direction = l.direction.ordinal + 1,
+                    is_new = l.isNew,
+                    correctness = l.correctness,
+                    elapsed_ms = l.elapsedMs,
+                    rating = l.rating.ordinal + 1,
+                    stability_before = l.stabilityBefore,
+                    stability_after = l.stabilityAfter,
+                    difficulty_before = l.difficultyBefore,
+                    difficulty_after = l.difficultyAfter,
+                    retrievability_before = l.retrievabilityBefore,
+                    reviewed_at = formatSupabaseTimestamp(l.reviewedAt)
+                )
+            }
+            val response = httpClient.post("$baseUrl/review_log") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                header("Prefer", "resolution=ignore-duplicates")
+                contentType(ContentType.Application.Json)
+                setBody(rows)
+            }
+            if (response.status.isSuccess()) synced += chunk.size else failed += chunk.size
+        }
+        SyncResult(
+            success = failed == 0,
+            message = if (failed == 0) "Review logs synced" else "Sebagian review log gagal dikirim",
+            itemsSynced = synced,
+            itemsFailed = failed
+        )
     }
     
     override suspend fun pushProfile(profile: UserProfile): SyncResult = withContext(Dispatchers.IO) {
-        // TODO: Implement
-        SyncResult(success = true, message = "Profile synced", itemsSynced = 1)
+        val token = authRepository.getAccessToken()
+        if (token.isNullOrBlank()) return@withContext SyncResult(success = false, message = "Tidak ada sesi aktif", itemsFailed = 1)
+
+        val row = SupabaseUserProfileRow(
+            id = profile.id,
+            display_name = profile.displayName,
+            role = profile.role.name.lowercase(),
+            preferred_locale = profile.preferredLocale,
+            level = profile.level,
+            exp = profile.exp,
+            last_review_date = profile.lastReviewDate?.let { formatSupabaseDate(it) },
+            current_streak = profile.currentStreak,
+            longest_streak = profile.longestStreak,
+            created_at = formatSupabaseTimestamp(profile.createdAt),
+            updated_at = formatSupabaseTimestamp(profile.updatedAt),
+            theme = profile.theme,
+            last_seen_at = profile.lastSeenAt?.let { formatSupabaseTimestamp(it) }
+        )
+        val response = httpClient.post("$baseUrl/user_profile") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header("Prefer", "resolution=merge-duplicates")
+            contentType(ContentType.Application.Json)
+            setBody(listOf(row))
+        }
+        if (response.status.isSuccess()) {
+            SyncResult(success = true, message = "Profile synced", itemsSynced = 1)
+        } else {
+            SyncResult(success = false, message = "Profile gagal dikirim: ${response.status.value}", itemsFailed = 1)
+        }
     }
 
-    private suspend fun pushProgress(): SyncResult = SyncResult(success = true, message = "Progress synced")
+    private suspend fun pushProgress(): SyncResult {
+        val uid = authRepository.currentUser.firstOrNull()?.id
+            ?: return SyncResult(success = false, message = "Tidak ada sesi aktif", itemsFailed = 1)
+        val all = try {
+            srsQueries.selectByUser(uid).executeAsList().map { it.toModel() }
+        } catch (e: Exception) {
+            return SyncResult(success = false, message = "Gagal memuat progress lokal: ${e.message}", itemsFailed = 1)
+        }
+        return pushProgress(all)
+    }
 
-    private suspend fun pushReviewLogs(): SyncResult = SyncResult(success = true, message = "Review logs synced")
+    private suspend fun pushReviewLogs(): SyncResult {
+        val pendingIds = readPendingReviewLogIds()
+        if (pendingIds.isEmpty()) return SyncResult(success = true, message = "Review logs synced")
 
-    private suspend fun pushProfile(): SyncResult = SyncResult(success = true, message = "Profile synced", itemsSynced = 1)
+        val logs = mutableListOf<ReviewLog>()
+        val pruned = pendingIds.toMutableList()
+        pendingIds.forEach { id ->
+            val row = try {
+                reviewQueries.selectById(id).executeAsOneOrNull()
+            } catch (e: Exception) {
+                null
+            }
+            if (row != null) {
+                logs += row.toModel()
+            } else {
+                pruned.remove(id)
+            }
+        }
+        if (logs.isEmpty()) {
+            savePendingReviewLogIds(emptyList())
+            return SyncResult(success = true, message = "Review logs synced")
+        }
+
+        val result = pushReviewLogs(logs)
+        if (result.success) {
+            val sentIds = logs.map { it.id }
+            savePendingReviewLogIds(pruned.filter { it !in sentIds })
+        }
+        return result
+    }
+
+    private suspend fun pushProfile(): SyncResult {
+        val profile = authRepository.currentUser.firstOrNull()
+            ?: return SyncResult(success = false, message = "Tidak ada sesi aktif", itemsFailed = 1)
+        return pushProfile(profile)
+    }
+
+    private fun readMasterWatermark(): Long? = try {
+        configQueries.selectByKey(MASTER_WATERMARK_KEY).executeAsOneOrNull()
+            ?.value_json?.toLongOrNull()?.takeIf { it > 0 }
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun readPendingReviewLogIds(): List<Long> = try {
+        decodeLongList(configQueries.selectByKey(PENDING_REVIEW_LOG_KEY).executeAsOneOrNull()?.value_json)
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    private fun savePendingReviewLogIds(ids: List<Long>) {
+        configQueries.upsert(PENDING_REVIEW_LOG_KEY, encodeLongList(ids), null, null, System.currentTimeMillis())
+    }
     
-    private suspend fun pullVocabulary(): SyncResult = withContext(Dispatchers.IO) {
-        val response = httpClient.get("$baseUrl/vocabulary?select=*,vocabulary_translations(*)")
+    private suspend fun pullVocabulary(since: Long?): SyncResult = withContext(Dispatchers.IO) {
+        val url = if (since != null) {
+            "$baseUrl/vocabulary?select=*,vocabulary_translations(*)&updated_at=gt.${formatSupabaseTimestamp(since)}"
+        } else {
+            "$baseUrl/vocabulary?select=*,vocabulary_translations(*)"
+        }
+        val response = httpClient.get(url)
         
         if (response.status == HttpStatusCode.OK) {
             val vocabList = response.body<List<SupabaseVocabularyRow>>()
@@ -335,8 +506,13 @@ class SyncRepositoryImpl(
         }
     }
     
-    private suspend fun pullDecks(): SyncResult = withContext(Dispatchers.IO) {
-        val response = httpClient.get("$baseUrl/decks")
+    private suspend fun pullDecks(since: Long?): SyncResult = withContext(Dispatchers.IO) {
+        val url = if (since != null) {
+            "$baseUrl/decks?updated_at=gt.${formatSupabaseTimestamp(since)}"
+        } else {
+            "$baseUrl/decks"
+        }
+        val response = httpClient.get(url)
         
         if (response.status == HttpStatusCode.OK) {
             val deckList = response.body<List<SupabaseDeckRow>>()
@@ -368,8 +544,13 @@ class SyncRepositoryImpl(
         }
     }
     
-    private suspend fun pullConfig(): SyncResult = withContext(Dispatchers.IO) {
-        val response = httpClient.get("$baseUrl/direction_thresholds")
+    private suspend fun pullConfig(since: Long?): SyncResult = withContext(Dispatchers.IO) {
+        val url = if (since != null) {
+            "$baseUrl/direction_thresholds?updated_at=gt.${formatSupabaseTimestamp(since)}"
+        } else {
+            "$baseUrl/direction_thresholds"
+        }
+        val response = httpClient.get(url)
 
         if (response.status == HttpStatusCode.OK) {
             val thresholds = response.body<List<SupabaseDirectionThresholdRow>>()

@@ -31,6 +31,7 @@ class ProgressRepositoryImpl(
     private val srsQueries = database.srsProgressQueries
     private val reviewQueries = database.reviewLogQueries
     private val userQueries = database.userProfileQueries
+    private val configQueries = database.appConfigQueries
 
     private val _dueCount = MutableStateFlow(0)
     val dueCountFlow: Flow<Int> = _dueCount
@@ -107,7 +108,7 @@ class ProgressRepositoryImpl(
 
     override suspend fun insertReviewLog(log: ModelReviewLog) {
         withContext(Dispatchers.IO) {
-            reviewQueries.insertAndReturnId(
+            val id = reviewQueries.insertAndReturnId(
                 user_id = log.userId,
                 vocabulary_id = log.vocabularyId,
                 direction = log.direction.ordinal.toLong(),
@@ -122,6 +123,19 @@ class ProgressRepositoryImpl(
                 retrievability_before = log.retrievabilityBefore,
                 reviewed_at = log.reviewedAt
             ).executeAsOne()
+            appendPendingReviewLogId(id)
+        }
+    }
+
+    private fun appendPendingReviewLogId(id: Long) {
+        val current = try {
+            configQueries.selectByKey(PENDING_REVIEW_LOG_KEY).executeAsOneOrNull()?.value_json
+        } catch (e: Exception) {
+            null
+        }
+        val ids = decodeLongList(current)
+        if (id !in ids) {
+            configQueries.upsert(PENDING_REVIEW_LOG_KEY, encodeLongList(ids + id), null, null, System.currentTimeMillis())
         }
     }
 
@@ -248,7 +262,7 @@ class ProgressRepositoryImpl(
     }
 }
 
-private fun SrsProgress.toModel(): ModelSrsProgress = ModelSrsProgress(
+internal fun SrsProgress.toModel(): ModelSrsProgress = ModelSrsProgress(
     userId = user_id,
     vocabularyId = vocabulary_id,
     direction = Direction.values()[direction.toInt()],
@@ -278,7 +292,7 @@ private fun ModelSrsProgress.toEntity(): SrsProgress = SrsProgress(
     updated_at = System.currentTimeMillis()
 )
 
-private fun ReviewLog.toModel(): ModelReviewLog = ModelReviewLog(
+internal fun ReviewLog.toModel(): ModelReviewLog = ModelReviewLog(
     id = id,
     userId = user_id,
     vocabularyId = vocabulary_id,

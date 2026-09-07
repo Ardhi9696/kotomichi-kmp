@@ -11,6 +11,12 @@ FROM ReviewLog
 WHERE user_id = :userId AND vocabulary_id = :vocabularyId
 ORDER BY reviewed_at DESC;
 
+selectById:
+SELECT *
+FROM ReviewLog
+WHERE id = :id
+LIMIT 1;
+
 insertAndReturnId:
 INSERT INTO ReviewLog (user_id, vocabulary_id, direction, is_new, correctness, elapsed_ms, rating, stability_before, stability_after, difficulty_before, difficulty_after, retrievability_before, reviewed_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
