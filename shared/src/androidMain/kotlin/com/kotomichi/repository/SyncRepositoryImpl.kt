@@ -243,8 +243,20 @@ class SyncRepositoryImpl(
     }
     
     override suspend fun fullSync(): SyncResult {
-        val pullResult = pullMasterData()
-        val result = if (pullResult.success) pushUserData() else pullResult
+        val masterResult = pullMasterData()
+        val userResult = pullUserData()
+        val result = if (masterResult.success && userResult.success) pushUserData() else {
+            SyncResult(
+                success = false,
+                message = buildString {
+                    if (!masterResult.success) append(masterResult.message)
+                    if (!userResult.success) {
+                        if (isNotEmpty()) append("; ")
+                        append(userResult.message)
+                    }
+                }
+            )
+        }
         _lastSyncDiagnostics.value = result.message
         return result
     }
