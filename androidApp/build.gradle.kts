@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.kotlinCompose)
 }
 
+import java.util.Properties
+
 android {
     namespace = "com.kotomichi.app"
     compileSdk = 34
@@ -15,6 +17,24 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "2.0.0"
+
+        val props = Properties().apply {
+            val f = rootProject.file("local.properties")
+            if (f.exists()) f.inputStream().use { load(it) }
+        }
+        val supabaseUrl = providers.gradleProperty("SUPABASE_URL")
+            .orElse(props.getProperty("SUPABASE_URL", "https://placeholder.supabase.co"))
+            .get()
+        val supabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY")
+            .orElse(props.getProperty("SUPABASE_ANON_KEY", "placeholder-anon-key"))
+            .get()
+
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
