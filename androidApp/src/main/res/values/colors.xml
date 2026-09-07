@@ -1,77 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary - Purple -->
-    <color name="purple_50">#F5F0FF</color>
-    <color name="purple_100">#E8DFFF</color>
-    <color name="purple_200">#D1BEFF</color>
-    <color name="purple_300">#B38FFF</color>
-    <color name="purple_400">#9660FF</color>
-    <color name="purple_500">#7A31FF</color>
-    <color name="purple_600">#6622CC</color>
-    <color name="purple_700">#5219A3</color>
-    <color name="purple_800">#3E137A</color>
-    <color name="purple_900">#2B0D52</color>
-    
-    <!-- Secondary - Teal -->
-    <color name="teal_50">#E0F2F1</color>
-    <color name="teal_100">#B2DFDB</color>
-    <color name="teal_200">#80CBC4</color>
-    <color name="teal_300">#4DB6AC</color>
-    <color name="teal_400">#26A69A</color>
-    <color name="teal_500">#009688</color>
-    <color name="teal_600">#00897B</color>
-    <color name="teal_700">#00796B</color>
-    <color name="teal_800">#00695C</color>
-    <color name="teal_900">#004D40</color>
-    
-    <!-- Tertiary - Orange -->
-    <color name="orange_50">#FFF3E0</color>
-    <color name="orange_100">#FFE0B2</color>
-    <color name="orange_200">#FFCC80</color>
-    <color name="orange_300">#FFB74D</color>
-    <color name="orange_400">#FFA726</color>
-    <color name="orange_500">#FF9800</color>
-    <color name="orange_600">#FB8C00</color>
-    <color name="orange_700">#F57C00</color>
-    <color name="orange_800">#EF6C00</color>
-    <color name="orange_900">#E65100</color>
-    
-    <!-- Error - Red -->
-    <color name="red_50">#FFEBEE</color>
-    <color name="red_100">#FFCDD2</color>
-    <color name="red_200">#EF9A9A</color>
-    <color name="red_300">#E57373</color>
-    <color name="red_400">#EF5350</color>
-    <color name="red_500">#F44336</color>
-    <color name="red_600">#E53935</color>
-    <color name="red_700">#D32F2F</color>
-    <color name="red_800">#C62828</color>
-    <color name="red_900">#B71C1C</color>
-    
-    <!-- Neutral -->
+    <!-- Primary - Shu 朱 (torii vermillion) -->
+    <color name="shu_100">#FBE5E2</color>
+    <color name="shu_300">#E85C4F</color>
+    <color name="shu_500">#C8372E</color>
+    <color name="shu_700">#8A2A22</color>
+    <color name="shu_900">#7A1E18</color>
+
+    <!-- Success - Matsuba 松葉 (pine needle) -->
+    <color name="matsuba_100">#DCEADF</color>
+    <color name="matsuba_300">#6FAE7D</color>
+    <color name="matsuba_500">#3F6B4B</color>
+    <color name="matsuba_700">#2C4E38</color>
+    <color name="matsuba_900">#1E3A28</color>
+
+    <!-- Warning - Yamabuki 山吹 (kerria yellow) -->
+    <color name="yamabuki_100">#F6E8C8</color>
+    <color name="yamabuki_300">#E0A526</color>
+    <color name="yamabuki_500">#B8842A</color>
+    <color name="yamabuki_700">#6B4A00</color>
+    <color name="yamabuki_900">#5A3D0A</color>
+
+    <!-- Error - Enji 臙脂 (deep crimson) -->
+    <color name="enji_100">#F6D9D6</color>
+    <color name="enji_300">#D9564B</color>
+    <color name="enji_500">#A8322A</color>
+    <color name="enji_700">#6E1A14</color>
+    <color name="enji_900">#5E120E</color>
+
+    <!-- Background - Washi 和紙 -->
+    <color name="washi_500">#FAF7F2</color>
+    <color name="washi_surface_light">#FFFFFF</color>
+    <color name="washi_dark">#121110</color>
+    <color name="washi_surface_dark">#1C1B1A</color>
+
+    <!-- Text - Sumi 墨 -->
+    <color name="sumi_500">#1C1B1A</color>
+    <color name="sumi_light">#EDEAE5</color>
+
+    <!-- Muted text - Nezumi 鼠 -->
+    <color name="nezumi_500">#726E68</color>
+    <color name="nezumi_300">#A39E96</color>
+
+    <!-- Border - Nezumi line -->
+    <color name="nezumi_line_light">#E5E0D8</color>
+    <color name="nezumi_line_dark">#33312E</color>
+
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    
-    <!-- Light Theme Surfaces -->
-    <color name="background_light">#FAFAFA</color>
-    <color name="surface_light">#FFFFFF</color>
-    <color name="on_background_light">#1C1B1F</color>
-    <color name="on_surface_light">#1C1B1F</color>
-    
-    <!-- Dark Theme Surfaces -->
-    <color name="background_dark">#1C1B1F</color>
-    <color name="surface_dark">#1C1B1F</color>
-    <color name="on_background_dark">#E6E1E5</color>
-    <color name="on_surface_dark">#E6E1E5</color>
-    
-    <!-- Semantic Colors -->
-    <color name="success_green">#4CAF50</color>
-    <color name="warning_amber">#FFC107</color>
-    <color name="info_blue">#2196F3</color>
-    
-    <!-- Card States -->
-    <color name="card_new">#E3F2FD</color>
-    <color name="card_learning">#FFF3E0</color>
-    <color name="card_review">#E8F5E9</color>
-    <color name="card_relearning">#FCE4EC</color>
 </resources>

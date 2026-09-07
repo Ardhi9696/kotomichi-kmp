@@ -312,8 +312,8 @@ fun DirectionIndicator(direction: Direction) {
         Direction.KANJI_TO_HIRAGANA -> androidx.compose.material3.MaterialTheme.colorScheme.secondary
         Direction.HIRAGANA_TO_MEANING -> androidx.compose.material3.MaterialTheme.colorScheme.tertiary
         Direction.MEANING_TO_HIRAGANA -> androidx.compose.material3.MaterialTheme.colorScheme.error
-        Direction.HIRAGANA_TO_KANJI -> Color(0xFF9C27B0) // Purple
-        Direction.MEANING_TO_KANJI -> Color(0xFF795548) // Brown
+        Direction.HIRAGANA_TO_KANJI -> androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
+        Direction.MEANING_TO_KANJI -> androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant
     }
     
     Box(
