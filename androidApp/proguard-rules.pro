@@ -32,3 +32,8 @@
 
 # Keep usecases
 -keep class com.kotomichi.usecase.** { *; }
+# Firebase Crashlytics
+-keepattributes SourceFile,LineNumberTable
+# Keep crashlytics from being removed/renamed to preserve stack traces
+-keep class com.google.firebase.crashlytics.** { *; }
+-keep class com.google.firebase.analytics.** { *; }

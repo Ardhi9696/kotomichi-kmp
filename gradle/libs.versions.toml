@@ -18,6 +18,9 @@ junit = "4.13.2"
 work = "2.10.0"
 timber = "5.0.1"
 desugar = "2.1.4"
+googleServices = "4.4.1"
+crashlyticsPlugin = "3.0.2"
+firebaseBom = "33.7.0"
 
 [libraries]
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -58,6 +61,10 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 junit = { module = "junit:junit", version.ref = "junit" }
 desugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
@@ -70,3 +77,5 @@ kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kot
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
+googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlyticsPlugin" }

@@ -1,6 +1,7 @@
 package com.kotomichi.util
 
 import android.content.Context
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -54,6 +55,8 @@ object CrashCatcher {
             } catch (ignored: Exception) {
                 // Jangan pernah memblokir jalur crash.
             }
+            // Laporkan ke Firebase Crashlytics (dipanggil sebelum handler default yg mematikan proses).
+            runCatching { FirebaseCrashlytics.getInstance().recordException(throwable) }
             previousHandler?.uncaughtException(thread, throwable)
             // Tak ada handler sebelumnya (langka): jangan biarkan app menggantung.
             if (previousHandler == null) {
