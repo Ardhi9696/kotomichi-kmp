@@ -41,9 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.kotomichi.di.get
-import com.kotomichi.model.HeatmapData
+import com.kotomichi.model.DailyStats
 import com.kotomichi.model.UserProfile
-import com.kotomichi.ui.components.CalendarDayActivity
+import com.kotomichi.ui.components.CalendarSummary
 import com.kotomichi.ui.components.KotomichiCalendar
 import com.kotomichi.ui.components.KotomichiCard
 import com.kotomichi.ui.components.KotomichiCardVariant
@@ -51,8 +51,8 @@ import com.kotomichi.ui.components.KotomichiLoadingSkeleton
 import com.kotomichi.ui.theme.KotomichiDimens
 import com.kotomichi.ui.theme.KotomichiSpacing
 import com.kotomichi.usecase.StatisticsUseCase
-import java.time.Instant
-import java.time.ZoneId
+import java.time.LocalDate
+import java.time.YearMonth
 import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,7 +66,11 @@ fun HomeTab(
 ) {
     val currentStreak = user?.currentStreak ?: 0
     val masteredVocab = deckCatalog.deckProgressMap.values.sumOf { it.masteredVocab }
-    val heatmap = rememberHomeHeatmap(userId = user?.id, refreshTrigger = deckCatalog.refreshTick)
+    val calendarData = rememberHomeCalendar(
+        userId = user?.id,
+        refreshTrigger = deckCatalog.refreshTick,
+        userStreak = currentStreak
+    )
 
     PullToRefreshBox(
         isRefreshing = deckCatalog.isRefreshing,
@@ -127,7 +131,11 @@ fun HomeTab(
                     }
 
                     item {
-                        HomeCalendarSection(heatmap = heatmap)
+                        HomeCalendarSection(
+                            dailyStats = calendarData.dailyStats,
+                            summary = calendarData.summary,
+                            startMonth = calendarData.startMonth
+                        )
                     }
                 }
             }
@@ -318,7 +326,11 @@ private fun InfoStatRow(
 }
 
 @Composable
-private fun HomeCalendarSection(heatmap: List<HeatmapData>) {
+private fun HomeCalendarSection(
+    dailyStats: List<DailyStats>,
+    summary: CalendarSummary,
+    startMonth: YearMonth
+) {
     KotomichiCard(variant = KotomichiCardVariant.Filled) {
         Column {
             Row(
@@ -336,7 +348,7 @@ private fun HomeCalendarSection(heatmap: List<HeatmapData>) {
                     fontWeight = FontWeight.Bold
                 )
             }
-            if (heatmap.isEmpty()) {
+            if (dailyStats.isEmpty()) {
                 Text(
                     text = "Belum ada aktivitas belajar. Mulai belajar untuk mengisi kalender.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -347,15 +359,10 @@ private fun HomeCalendarSection(heatmap: List<HeatmapData>) {
                         .padding(vertical = KotomichiSpacing.xl2)
                 )
             } else {
-                val activities = heatmap.map { data ->
-                    CalendarDayActivity(
-                        date = Instant.ofEpochMilli(data.date).atZone(ZoneId.systemDefault()).toLocalDate(),
-                        intensity = data.count.coerceIn(0, 4)
-                    )
-                }
                 KotomichiCalendar(
-                    activities = activities,
-                    onDayClick = {},
+                    dailyStats = dailyStats,
+                    summary = summary,
+                    startMonth = startMonth,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = KotomichiSpacing.lg)
@@ -365,23 +372,55 @@ private fun HomeCalendarSection(heatmap: List<HeatmapData>) {
     }
 }
 
+private data class HomeCalendarData(
+    val dailyStats: List<DailyStats>,
+    val summary: CalendarSummary,
+    val startMonth: YearMonth
+)
+
 @Composable
-private fun rememberHomeHeatmap(userId: String?, refreshTrigger: Int): List<HeatmapData> {
+private fun rememberHomeCalendar(
+    userId: String?,
+    refreshTrigger: Int,
+    userStreak: Int
+): HomeCalendarData {
     val statisticsUseCase: StatisticsUseCase = remember { get() }
-    var heatmap by remember { mutableStateOf<List<HeatmapData>>(emptyList()) }
+    var dailyStats by remember { mutableStateOf<List<DailyStats>>(emptyList()) }
 
     LaunchedEffect(userId, refreshTrigger) {
         if (userId == null || refreshTrigger <= 0) {
-            heatmap = emptyList()
+            dailyStats = emptyList()
             return@LaunchedEffect
         }
-        runCatching { statisticsUseCase.getHeatmapData(userId, 365) }
-            .onSuccess { heatmap = it }
+        runCatching { statisticsUseCase.getDailyStats(userId, 365) }
+            .onSuccess { dailyStats = it }
             .onFailure {
-                Timber.w(it, "heatmap kosong setelah refresh: fetch gagal")
-                heatmap = emptyList()
+                Timber.w(it, "kalender kosong setelah refresh: fetch gagal")
+                dailyStats = emptyList()
             }
     }
 
-    return heatmap
+    val summary = remember(dailyStats, userStreak) {
+        val zone = java.time.ZoneId.systemDefault()
+        val today = LocalDate.now()
+        val todayEndMs = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val thisMonthStart = YearMonth.now().atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val todayMinutes = dailyStats
+            .filter { it.date in today.atStartOfDay(zone).toInstant().toEpochMilli() until todayEndMs }
+            .sumOf { it.totalTimeMs } / 60_000
+        val daysThisMonth = dailyStats.count { it.date in thisMonthStart until todayEndMs && it.totalCount > 0 }
+        val totalMinutes = dailyStats.sumOf { it.totalTimeMs } / 60_000
+        CalendarSummary(
+            minutesToday = todayMinutes.toInt(),
+            dayStreak = userStreak,
+            daysThisMonth = daysThisMonth,
+            totalMinutes = totalMinutes.toInt()
+        )
+    }
+
+    return HomeCalendarData(
+        dailyStats = dailyStats,
+        summary = summary,
+        startMonth = YearMonth.now()
+    )
 }
