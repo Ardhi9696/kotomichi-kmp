@@ -31,10 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +53,6 @@ import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.usecase.DeckProgressUseCase
 import com.kotomichi.usecase.GamificationUseCase
 import com.kotomichi.usecase.ReviewCardUseCase
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,16 +65,29 @@ fun DashboardScreen(
     val deckProgressUseCase: DeckProgressUseCase = get()
     val gamificationUseCase: GamificationUseCase = get()
     val reviewUseCase: ReviewCardUseCase = get()
-    val scope = rememberCoroutineScope()
+    val syncRepository: com.kotomichi.repository.SyncRepository = get()
+    val deckRepository: com.kotomichi.repository.DeckRepository = get()
 
     val user by authUseCase.currentUser.collectAsStateWithLifecycle(null)
-    val decks by remember { mutableStateOf<List<Deck>>(emptyList()) }
-    val deckProgressMap by remember { mutableStateOf<Map<Long, com.kotomichi.model.DeckProgress>>(emptyMap()) }
+    var decks by remember { mutableStateOf<List<Deck>>(emptyList()) }
+    var deckProgressMap by remember { mutableStateOf<Map<Long, com.kotomichi.model.DeckProgress>>(emptyMap()) }
     val dueCount by reviewUseCase.observeDueCount(user?.id ?: "").collectAsStateWithLifecycle(0)
     var isLoading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf<String?>(null) }
 
-    scope.launch {
-        // Load data
+    val userId = user?.id
+    LaunchedEffect(userId) {
+        if (userId == null) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+        isLoading = true
+        loadError = null
+        runCatching { syncRepository.pullMasterData() }
+        val progressResult = runCatching { syncRepository.pullUserData() }
+        progressResult.exceptionOrNull()?.let { loadError = it.message }
+        decks = deckRepository.getPublishedDecks()
+        deckProgressMap = deckProgressUseCase.getAllDeckProgress(userId).associateBy { it.deckId }
         isLoading = false
     }
     
@@ -142,6 +154,20 @@ fun DashboardScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (loadError != null) {
+                    androidx.compose.material3.Surface(
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Tidak dapat memuat progress dari server: $loadError",
+                            modifier = Modifier.padding(12.dp),
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
                 // User Profile Card
                 ProfileCard(
                     user = user ?: com.kotomichi.model.UserProfile(id = ""),

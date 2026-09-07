@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface SyncRepository {
     suspend fun pullMasterData(): SyncResult
+    suspend fun pullUserData(): SyncResult
     suspend fun pushUserData(): SyncResult
     suspend fun fullSync(): SyncResult
     suspend fun pullVocabularyUpdates(since: Long): List<Vocabulary>

@@ -24,6 +24,8 @@ interface AuthRepository {
     suspend fun updateProfile(profile: UserProfile): UserProfile
     suspend fun changeRole(userId: String, role: UserRole)
     suspend fun deleteUser(userId: String)
+    suspend fun getAccessToken(): String?
+    suspend fun publishProfile(profile: UserProfile)
     
     fun observeCurrentUser(): Flow<UserProfile?>
 }

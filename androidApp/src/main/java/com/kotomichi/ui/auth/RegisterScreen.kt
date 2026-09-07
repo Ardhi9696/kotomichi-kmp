@@ -1,5 +1,7 @@
 package com.kotomichi.ui.auth
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -10,12 +12,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,7 +38,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kotomichi.di.get
@@ -45,6 +61,8 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
+    var showConfirmPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showErrorDialog by remember { mutableStateOf(false) }
@@ -81,13 +99,23 @@ fun RegisterScreen(
             }
         }
     }
-    
+
+    BackHandler { onNavigateToLogin() }
+
     androidx.compose.material3.Scaffold(
         topBar = {
-            androidx.compose.material3.TopAppBar(
+            TopAppBar(
                 title = { Text("Daftar Akun") },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
+                navigationIcon = {
+                    IconButton(onClick = onNavigateToLogin) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         }
@@ -155,21 +183,37 @@ fun RegisterScreen(
                             onValueChange = { password = it },
                             label = { Text("Kata Sandi") },
                             singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
+                            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showPassword = !showPassword }) {
+                                    Icon(
+                                        imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                        contentDescription = if (showPassword) "Sembunyikan kata sandi" else "Tampilkan kata sandi"
+                                    )
+                                }
+                            },
                             keyboardOptions = KeyboardOptions(
-                                imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                                imeAction = ImeAction.Next
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        
+
                         OutlinedTextField(
                             value = confirmPassword,
                             onValueChange = { confirmPassword = it },
                             label = { Text("Konfirmasi Kata Sandi") },
                             singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
+                            visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                                    Icon(
+                                        imageVector = if (showConfirmPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                        contentDescription = if (showConfirmPassword) "Sembunyikan kata sandi" else "Tampilkan kata sandi"
+                                    )
+                                }
+                            },
                             keyboardOptions = KeyboardOptions(
-                                imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                                imeAction = ImeAction.Done
                             ),
                             keyboardActions = KeyboardActions(
                                 onDone = { handleRegister() }

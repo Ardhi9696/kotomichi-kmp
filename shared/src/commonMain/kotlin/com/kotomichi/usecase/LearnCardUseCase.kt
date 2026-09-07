@@ -163,7 +163,7 @@ class DeckProgressUseCase(
     suspend fun getAllDeckProgress(userId: String): List<DeckProgress> {
         val decks = deckRepository.getPublishedDecks()
         return decks.map { deck ->
-            progressRepository.getDeckProgress(userId, deck.id)
+            progressRepository.getDeckProgress(userId, deck.id).copy(deckId = deck.id)
         }
     }
     

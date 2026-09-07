@@ -1,5 +1,7 @@
 package com.kotomichi.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -16,7 +18,14 @@ fun AppNavHost(isAuthenticated: Boolean) {
     val navController = rememberNavController()
     val startRoute = if (isAuthenticated) "dashboard" else "login"
 
-    NavHost(navController, startDestination = startRoute) {
+    NavHost(
+        navController = navController,
+        startDestination = startRoute,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None }
+    ) {
         composable("login") {
             LoginScreen(
                 onLoginSuccess = { navController.navigate("dashboard") { popUpTo("login") { inclusive = true } } },

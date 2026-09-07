@@ -269,6 +269,15 @@ class AuthRepositoryImpl(
         return _currentUser.asStateFlow()
     }
 
+    override suspend fun getAccessToken(): String? = withContext(Dispatchers.IO) {
+        accessToken
+    }
+
+    override suspend fun publishProfile(profile: ModelUserProfile) = withContext(Dispatchers.IO) {
+        persistUser(profile)
+        _currentUser.value = profile
+    }
+
     private suspend fun fetchAndStoreUser() = withContext(Dispatchers.IO) {
         val token = accessToken ?: return@withContext
         val response = httpClient.get("$baseUrl/user") {
