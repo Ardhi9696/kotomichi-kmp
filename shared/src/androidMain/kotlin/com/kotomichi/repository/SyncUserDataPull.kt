@@ -147,6 +147,11 @@ internal class SyncUserDataPull(
                 }
             }
 
+            // Selaraskan level/EXP dengan total aktivitas (review_log + bonus streak)
+            // yang tercatat — mengoreksi EXP yang hilang karena jalur awarding instan
+            // gagal diam-diam, dan menyatukan EXP antar-perangkat.
+            runCatching { recomputeProfileExpFromLogs(database, authRepository) }
+
             SyncResult(
                 success = totalFailed == 0,
                 message = if (totalFailed == 0) "Progress dimuat dari server" else "Sebagian data gagal dimuat",

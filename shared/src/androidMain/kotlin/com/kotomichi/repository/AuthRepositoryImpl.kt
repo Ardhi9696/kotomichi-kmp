@@ -317,6 +317,9 @@ class AuthRepositoryImpl(
         val rows = runCatching { response.body<List<SupabaseUserProfileRow>>() }.getOrDefault(emptyList())
         val row = rows.firstOrNull() ?: return@withContext
         publishProfile(row.toModelProfile())
+        // Repair EXP/level dari aktivitas lokal (review_log) bila jalur awarding
+        // instan gagal diam-diam sehingga profil server kokoh pada 0.
+        runCatching { recomputeProfileExpFromLogs(database, this@AuthRepositoryImpl) }
     }
 
     private suspend fun fetchAndStoreUser() = withContext(Dispatchers.IO) {
