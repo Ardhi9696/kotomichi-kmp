@@ -157,9 +157,9 @@ class BelajarQuizUseCaseTest {
 
         val sessions = useCase.prepareSessions("user1", 10L)
 
-        assertEquals(listOf(5, 5, 2), sessions.map { it.size })
+        assertEquals(listOf(10, 2), sessions.map { it.size })
         assertEquals(12, sessions.flatten().size)
-        assertTrue(sessions.first().all { it.id in 1L..5L })
+        assertTrue(sessions.first().take(5).all { it.id in 1L..5L })
     }
 
     @Test

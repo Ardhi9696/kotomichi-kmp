@@ -21,4 +21,7 @@ object KotomichiDimens {
     val splashLogoSize = 96.dp
     val splashTaglineMaxWidth = 240.dp
     val topBarProgressWidth = 136.dp
+    val quizCardMin = 200.dp
+    val quizCardMax = 280.dp
+    val quizFeedbackSlotHeight = 112.dp
 }

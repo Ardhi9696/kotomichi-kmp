@@ -28,6 +28,7 @@ internal class SyncUserDataPull(
     private val baseUrl: String,
     private val authRepository: AuthRepository
 ) {
+    private val configQueries = database.appConfigQueries
     private val srsQueries = database.srsProgressQueries
     private val reviewQueries = database.reviewLogQueries
     private val userQueries = database.userProfileQueries
@@ -63,13 +64,33 @@ internal class SyncUserDataPull(
                 throw Exception("Tidak ada sesi aktif")
             }
             profilePull.profile?.let { profile ->
-                authRepository.publishProfile(profile)
-                totalSynced += 1
+                // Jangan timpa profil lokal (EXP/streak/level) dengan data server yang
+                // lebih tua saat user sudah mengerjakan Belajar/Review di perangkat ini.
+                val localUpdatedAt = runCatching {
+                    userQueries.selectById(uid).executeAsOneOrNull()?.updated_at
+                }.getOrNull()
+                if (localUpdatedAt == null || profile.updatedAt > localUpdatedAt) {
+                    authRepository.publishProfile(profile)
+                    totalSynced += 1
+                }
             }
 
-            // Pull progress
+            // Pull progress. Row di-skip bila:
+            //  1) ada review lokal yang belum terkirim untuk kartu tsb (pending → lokal otoritatif), atau
+            //  2) state lokal tidak lebih tua dari server (hindari rollback belajar/review yang baru selesai).
+            val dirtyCards = pendingDirtyCards()
             val progressList = pullRemoteProgress(token)
             progressList.forEach { progress ->
+                val isDirty = (progress.vocabularyId to progress.direction.ordinal.toLong()) in dirtyCards
+                if (isDirty) return@forEach
+                val localUpdatedAt = runCatching {
+                    srsQueries.selectByUserAndVocabAndDirection(
+                        progress.userId,
+                        progress.vocabularyId,
+                        progress.direction.ordinal.toLong()
+                    ).executeAsOneOrNull()?.updated_at
+                }.getOrNull()
+                if (localUpdatedAt != null && localUpdatedAt >= progress.updatedAt) return@forEach
                 srsQueries.upsert(
                     user_id = progress.userId,
                     vocabulary_id = progress.vocabularyId,
@@ -82,7 +103,7 @@ internal class SyncUserDataPull(
                     review_count = progress.reviewCount.toLong(),
                     lapses = progress.lapses.toLong(),
                     created_at = progress.createdAt,
-                    updated_at = System.currentTimeMillis()
+                    updated_at = progress.updatedAt
                 )
             }
             totalSynced += progressList.size
@@ -143,6 +164,26 @@ internal class SyncUserDataPull(
     }
 
     private data class ProfilePull(val profile: com.kotomichi.model.UserProfile?, val authorized: Boolean)
+
+    /** Kartu (vocab, direction) bernilai "kotor": masih ada review log lokal yang belum terkirim. */
+    private fun pendingDirtyCards(): Set<Pair<Long, Long>> {
+        val ids = try {
+            configQueries.selectByKey(PENDING_REVIEW_LOG_KEY).executeAsOneOrNull()?.value_json
+        } catch (e: Exception) {
+            null
+        }
+        val pending = decodeLongList(ids)
+        if (pending.isEmpty()) return emptySet()
+        val cards = mutableSetOf<Pair<Long, Long>>()
+        pending.forEach { id ->
+            runCatching {
+                reviewQueries.selectById(id).executeAsOneOrNull()?.let {
+                    cards += (it.vocabulary_id to it.direction)
+                }
+            }
+        }
+        return cards
+    }
 
     private suspend fun pullRemoteProfile(token: String): ProfilePull? = withContext(Dispatchers.IO) {
         val uid = authRepository.currentUserId() ?: return@withContext null

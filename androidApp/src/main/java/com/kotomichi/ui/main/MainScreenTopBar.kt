@@ -40,6 +40,7 @@ fun MainScreenTopBar(
                 activeMenu != null -> LearnMenuTopBar(menu = activeMenu, onBack = onMenuBack)
                 selectedDeck != null && !showDeckPicker -> LearnTopBar(
                     deckTitle = selectedDeck.title,
+                    deckSubtitle = selectedDeck.subtitle,
                     onDeckClick = onDeckClick
                 )
             }

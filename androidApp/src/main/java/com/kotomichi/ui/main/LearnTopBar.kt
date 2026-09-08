@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.ReplayCircleFilled
@@ -34,11 +35,13 @@ import com.kotomichi.ui.theme.KotomichiSpacing
 /**
  * Top bar tab Belajar (biasa).
  * @param deckTitle Judul deck aktif yang ditampilkan di chip
+ * @param deckSubtitle Subjudul deck aktif (opsional, ditampilkan di baris kedua chip)
  * @param onDeckClick Callback saat chip deck diklik untuk buka deck picker
  */
 @Composable
 fun LearnTopBar(
     deckTitle: String,
+    deckSubtitle: String?,
     onDeckClick: () -> Unit
 ) {
     Row(
@@ -67,12 +70,26 @@ fun LearnTopBar(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(KotomichiSpacing.sm))
-            Text(
-                text = deckTitle,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Column(
+                horizontalAlignment = Alignment.Start,
+                modifier = Modifier.widthIn(max = 200.dp)
+            ) {
+                Text(
+                    text = deckTitle,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                deckSubtitle?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
             Spacer(Modifier.width(KotomichiSpacing.xs))
             Icon(
                 imageVector = Icons.Rounded.ReplayCircleFilled,

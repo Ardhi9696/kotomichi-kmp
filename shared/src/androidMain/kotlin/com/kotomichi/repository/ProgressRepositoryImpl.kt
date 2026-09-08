@@ -149,7 +149,7 @@ class ProgressRepositoryImpl(
 
     override suspend fun getDeckProgress(userId: String, deckId: Long): DeckProgress = withContext(Dispatchers.IO) {
         val progressList = srsQueries.selectByDeck(userId, deckId).executeAsList().map { it.toModel() }
-        calculateDeckProgress(progressList)
+        calculateDeckProgress(deckVocabIds(deckId), progressList)
     }
 
     override suspend fun getDailyStats(userId: String, days: Int): List<ModelDailyStats> = withContext(Dispatchers.IO) {
@@ -248,7 +248,7 @@ class ProgressRepositoryImpl(
         return srsQueries.observeByDeck(userId, deckId)
             .asFlow()
             .map { it.executeAsList().map { m -> m.toModel() } }
-            .map { list -> calculateDeckProgress(list) }
+            .map { list -> calculateDeckProgress(deckVocabIds(deckId), list) }
             .distinctUntilChanged()
     }
 
@@ -277,12 +277,34 @@ class ProgressRepositoryImpl(
         return calendar.timeInMillis
     }
 
-    private fun calculateDeckProgress(progressList: List<ModelSrsProgress>): DeckProgress {
-        val totalVocab = progressList.size
-        val learnedVocab = progressList.count { it.state != CardState.NEW }
-        val reviewingVocab = progressList.count { it.state == CardState.REVIEW }
-        val masteredVocab = progressList.count {
-            com.kotomichi.fsrs.FsrsCalculator.calculateRetrievability(it) >= 0.9 && it.state == CardState.REVIEW
+    /**
+     * Ambang stabilitas FSRS (dalam hari) untuk menganggap suatu arah dikuasai.
+     * Interval jadwal ≈ 0.9 × stability, jadi ~21 hari berarti ujian berikutnya
+     * jatuh ±3 minggu lagi — tanda retensi sudah matang, bukan sekadar sekali
+     * menjawab benar.
+     */
+    private companion object {
+        const val STABILITY_MASTERY_THRESHOLD_DAYS = 21.0
+    }
+
+    private fun deckVocabIds(deckId: Long): List<Long> =
+        database.deckVocabularyQueries.selectVocabIdsByDeck(deckId).executeAsList()
+
+    /**
+     * Penghitungan "Kuasai" berbasis kosakata unik (bukan per baris arah), agar
+     * deck 20 kosakata menampilkan maksimal 20 dikuasai. Satu kosakata dianggap
+     * dikuasai jika SEMUA arah yang sudah dipelajarinya berada di state REVIEW
+     * dengan stability >= 21 hari (mature). Arah yang belum pernah dimulai tidak
+     * punya baris dan tidak ikut dihitung.
+     */
+    private fun calculateDeckProgress(vocabIds: List<Long>, progressList: List<ModelSrsProgress>): DeckProgress {
+        val totalVocab = vocabIds.size
+        val byVocab = progressList.groupBy { it.vocabularyId }
+        val learnedVocab = vocabIds.count { id -> byVocab[id].orEmpty().any { it.state != CardState.NEW } }
+        val reviewingVocab = vocabIds.count { id -> byVocab[id].orEmpty().any { it.state == CardState.REVIEW } }
+        val masteredVocab = vocabIds.count { id ->
+            val rows = byVocab[id].orEmpty()
+            rows.isNotEmpty() && rows.all { it.state == CardState.REVIEW && it.stability >= STABILITY_MASTERY_THRESHOLD_DAYS }
         }
         val averageRetrievability = if (progressList.isNotEmpty()) {
             progressList.sumOf { com.kotomichi.fsrs.FsrsCalculator.calculateRetrievability(it) } / progressList.size

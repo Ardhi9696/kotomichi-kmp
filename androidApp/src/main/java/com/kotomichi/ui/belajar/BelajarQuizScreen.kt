@@ -16,6 +16,7 @@ package com.kotomichi.ui.belajar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -59,6 +60,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kotomichi.di.get
 import com.kotomichi.model.Direction
@@ -275,7 +277,7 @@ private fun buildBelajarItemFromKey(
 
 /**
  * Layar kuis Belajar untuk sebuah deck. Beberapa sesi berurutan; tiap sesi
- * 5 kosakata × 3 arah. Run yang belum selesai dilanjutkan dari posisi terakhir
+ * 10 kosakata × 3 arah (30 soal). Run yang belum selesai dilanjutkan dari posisi terakhir
  * (progress tersimpan per jawaban); hasil tiap sesi diakumulasi ke statistik harian.
  * @param paddingValues Padding dari parent
  * @param userId ID user aktif
@@ -450,7 +452,10 @@ internal fun QuizSessionFlow(
 
     val overall = completedSessions.fold(QuizSessionStats()) { acc, s -> acc.plus(s) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)
+    ) {
         when {
             showOverall -> OverallSummary(
                 stats = overall,
@@ -589,7 +594,10 @@ internal fun BelajarSessionBody(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)
+    ) {
         // ── Penghitung, keluar, chip ──
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -617,30 +625,44 @@ internal fun BelajarSessionBody(
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
 
-        // ── Prompt soal ──
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        // ── Kartu soal persegi besar (lebih besar dari pilihan jawaban) ──
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = KotomichiSpacing.lg, vertical = KotomichiSpacing.lg),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Sisi persegi agak lebih kecil dari lebar layar (tidak memakan layar
+            // penuh), dan dibatasi dalam rentang tetap supaya tidak membesar/menyusut
+            // saat slot umpan balik di bawah berubah isinya (mis. tombol "Lanjut").
+            val side = minOf(maxWidth * 0.72f, maxHeight).coerceIn(KotomichiDimens.quizCardMin, KotomichiDimens.quizCardMax)
+            Card(
+                modifier = Modifier.size(side),
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Text(
-                    text = current.direction.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.height(KotomichiSpacing.sm))
-                Text(
-                    text = current.prompt,
-                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                    textAlign = TextAlign.Center
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = KotomichiSpacing.md, vertical = KotomichiSpacing.md),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = current.direction.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(KotomichiSpacing.sm))
+                    Text(
+                        text = current.prompt,
+                        style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
 
@@ -668,30 +690,43 @@ internal fun BelajarSessionBody(
             }
         }
 
-        // ── Umpan balik ──
-        if (selected != null) {
-            val isCorrect = selected == current.correctIndex
-            if (!isCorrect) {
-                Text(
-                    text = "Oops, salah!",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.error
-                )
-                Text(
-                    text = "Jawaban benar: ${current.options[current.correctIndex]}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.extendedColors.success
-                )
-                Button(
-                    onClick = { advanceOrFinish() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(KotomichiDimens.ratingButtonHeight)
-                ) {
-                    Text(
-                        text = if (index == items.lastIndex) "Lihat Hasil" else "Lanjut",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                    )
+        // ── Umpan balik (slot tinggi tetap, supaya kartu soal tidak menyusut) ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = KotomichiDimens.quizFeedbackSlotHeight),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            if (selected != null) {
+                val isCorrect = selected == current.correctIndex
+                if (!isCorrect) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
+                    ) {
+                        Text(
+                            text = "Oops, salah!",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = "Jawaban benar: ${current.options[current.correctIndex]}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.extendedColors.success
+                        )
+                        Button(
+                            onClick = { advanceOrFinish() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(KotomichiDimens.ratingButtonHeight)
+                        ) {
+                            Text(
+                                text = if (index == items.lastIndex) "Lihat Hasil" else "Lanjut",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1027,7 +1062,7 @@ private fun QuizOptionButton(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 52.dp),
+            .heightIn(min = 56.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = colors.first,
             contentColor = colors.second
@@ -1036,7 +1071,7 @@ private fun QuizOptionButton(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
             maxLines = 2
         )
     }

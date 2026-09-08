@@ -9,6 +9,8 @@ import com.kotomichi.model.Vocabulary
 import com.kotomichi.repository.AuthRepository
 import com.kotomichi.repository.ProgressRepository
 import com.kotomichi.repository.VocabRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Mode belajar pada quick action "Belajar".
@@ -46,7 +48,7 @@ class BelajarQuizUseCase(
     private val fsrsCalculator: FsrsCalculator = FsrsCalculator
 ) {
     companion object {
-        const val VOCAB_PER_SESSION = 5
+        const val VOCAB_PER_SESSION = 10
         const val REVIEW_SESSION_SIZE = 10
         const val FAST_ANSWER_THRESHOLD_MS = 8_000L
         const val GOOD_ANSWER_THRESHOLD_MS = 15_000L
@@ -140,7 +142,7 @@ class BelajarQuizUseCase(
         direction: Direction,
         rating: Rating,
         responseTimeMs: Long
-    ): SrsProgress {
+    ): SrsProgress = withContext(Dispatchers.IO) {
         val stale = progressRepository.getProgress(userId, vocabularyId, direction)
         val wasNew = stale?.reviewCount == null || stale.reviewCount == 0
 
@@ -185,7 +187,7 @@ class BelajarQuizUseCase(
             )
             awardExpAndStreak(userId, wasNew, rating)
         }
-        return progress
+        progress
     }
 
     /**

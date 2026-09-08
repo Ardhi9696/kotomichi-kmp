@@ -53,14 +53,15 @@ class SyncRepositoryImpl(
     // ── Mutex untuk Serialisasi ──────────────────────────────────────────────
     private val syncMutex = Mutex()
 
-    private suspend fun <T> exclusive(block: suspend () -> T): T {
-        _isSyncing.value = true
-        try {
-            return syncMutex.withLock { block() }
-        } finally {
-            _isSyncing.value = false
+    private suspend fun <T> exclusive(block: suspend () -> T): T =
+        withContext(Dispatchers.IO) {
+            _isSyncing.value = true
+            try {
+                syncMutex.withLock { block() }
+            } finally {
+                _isSyncing.value = false
+            }
         }
-    }
 
     // ── Komponen Sinkronisasi ────────────────────────────────────────────────
     private val masterDataPull = SyncMasterDataPull(database, httpClient, baseUrl)
@@ -108,14 +109,29 @@ class SyncRepositoryImpl(
 
     override suspend fun fullSync(): SyncResult = exclusive {
         val masterResult = masterDataPull.pullAll(diagnosticsHelper.readMasterWatermark())
+        // Kirim dulu data lokal (progress/review/profil yang belum terkirim) ke server,
+        // baru tarik ulang. Urutan ini mencegah hasil Belajar/Review lokal tertimpa
+        // state server yang lebih lama saat pull berikutnya.
+        val pushResult = userDataPush.pushAll()
         val userResult = userDataPull.pullAll()
-        val result = if (masterResult.success && userResult.success) {
-            userDataPush.pushAll()
+        val result = if (masterResult.success && userResult.success && pushResult.success) {
+            SyncResult(
+                success = true,
+                message = buildString {
+                    append("Master OK")
+                    if (pushResult.itemsSynced > 0 || pushResult.itemsFailed > 0) append("; ${pushResult.message}")
+                    if (userResult.itemsSynced > 0 || userResult.itemsFailed > 0) append("; ${userResult.message}")
+                }.ifBlank { "Sinkronisasi berhasil" }
+            )
         } else {
             SyncResult(
                 success = false,
                 message = buildString {
                     if (!masterResult.success) append(masterResult.message)
+                    if (!pushResult.success) {
+                        if (isNotEmpty()) append("; ")
+                        append(pushResult.message)
+                    }
                     if (!userResult.success) {
                         if (isNotEmpty()) append("; ")
                         append(userResult.message)

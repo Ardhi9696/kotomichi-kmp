@@ -5,7 +5,7 @@ WHERE deck_id = :deckId
 ORDER BY order_in_deck;
 
 selectCountByDeck:
-SELECT deck_id, COUNT(*) AS total
+SELECT deck_id, COUNT(DISTINCT vocabulary_id) AS total
 FROM DeckVocabulary
 GROUP BY deck_id;
 

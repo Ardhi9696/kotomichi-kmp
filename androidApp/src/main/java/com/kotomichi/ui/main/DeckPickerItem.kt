@@ -37,11 +37,16 @@ fun DeckPickerItem(deck: Deck, progress: DeckProgress?, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.xs)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.xs)) {
                 Text(
                     text = deck.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = deck.subtitle ?: "JLPT ${deck.jlptLevel?.name ?: ""}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "${deck.vocabularyCount} kosakata",
@@ -49,7 +54,8 @@ fun DeckPickerItem(deck: Deck, progress: DeckProgress?, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            val vocabLeft = deck.vocabularyCount - (progress?.learnedVocab ?: 0)
+            val vocabLeft = (deck.vocabularyCount - (progress?.learnedVocab ?: 0))
+                .coerceIn(0, deck.vocabularyCount)
             Text(
                 text = "$vocabLeft baru",
                 style = MaterialTheme.typography.labelLarge,

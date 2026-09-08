@@ -14,7 +14,9 @@ import com.kotomichi.repository.SyncRepository
 import com.kotomichi.repository.SyncResult
 import com.kotomichi.usecase.DeckProgressUseCase
 import com.kotomichi.util.SyncTtlManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 private const val PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000L
@@ -49,42 +51,52 @@ class DeckCatalogState(
         isSynchronizing = true
         catalog = catalog.copy(isSyncing = !showSkeleton, isLoading = showSkeleton, loadError = null)
         try {
-            // Pipeline lain (WorkManager/TTL) sedang sync → jangan tarik ulang,
-            // cukup muat data lokal agar UI tetap responsif.
-            if (!force && syncRepository.isSyncing.value) {
-                reloadLocal(null)
-                return
-            }
-            if (!force && !SyncTtlManager.isStale(SyncTtlManager.TTL_ON_RESUME_MS)) {
-                reloadLocal(null)
-                return
-            }
-            val masterResult = runCatching { syncRepository.pullMasterData() }
-                .getOrElse { SyncResult(success = false, message = "Sync master error: ${it.message}") }
-            val userResult = userId?.let {
-                runCatching { syncRepository.pullUserData() }
-                    .getOrElse { SyncResult(success = false, message = "Sync user error: ${it.message}") }
-            }
-            val success = masterResult.success && (userResult?.success ?: true)
-            val error = if (success) null else buildString {
-                if (!masterResult.success) append(masterResult.message)
-                userResult?.takeIf { !it.success }?.let {
-                    if (isNotEmpty()) append("; ")
-                    append(it.message)
+            // Seluruh sinkronisasi (jaringan + baca/tulis DB lokal) dijalankan di
+            // background agar UI tidak membeku. State Compose boleh di-update dari
+            // thread mana pun (snapshot system).
+            withContext(Dispatchers.IO) {
+                // Pipeline lain (WorkManager/TTL) sedang sync → jangan tarik ulang,
+                // cukup muat data lokal agar UI tetap responsif.
+                if (!force && syncRepository.isSyncing.value) {
+                    reloadLocal(null)
+                    return@withContext
                 }
-            }.ifBlank { null }
-            if (success) SyncTtlManager.markSynced()
-            runCatching { reloadLocal(error) }
-                .onFailure { t ->
-                    Timber.e(t, "sync: reloadLocal gagal")
-                    catalog = catalog.copy(
-                        decks = emptyList(),
-                        deckProgressMap = emptyMap(),
-                        totalVocabulary = 0,
-                        isLoading = false,
-                        loadError = "Gagal memuat data lokal: ${t.message}"
-                    )
+                if (!force && !SyncTtlManager.isStale(SyncTtlManager.TTL_ON_RESUME_MS)) {
+                    reloadLocal(null)
+                    return@withContext
                 }
+                val masterResult = runCatching { syncRepository.pullMasterData() }
+                    .getOrElse { SyncResult(success = false, message = "Sync master error: ${it.message}") }
+                val userResult = userId?.let {
+                    // Kirim dulu progress/review/profil lokal yang belum terkirim, baru tarik
+                    // dari server — supaya hasil Belajar/Review yang baru selesai tidak tertimpa
+                    // data server yang lebih lama.
+                    runCatching { syncRepository.pushUserData() }
+                        .getOrElse { SyncResult(success = false, message = "Push user error: ${it.message}") }
+                    runCatching { syncRepository.pullUserData() }
+                        .getOrElse { SyncResult(success = false, message = "Sync user error: ${it.message}") }
+                }
+                val success = masterResult.success && (userResult?.success ?: true)
+                val error = if (success) null else buildString {
+                    if (!masterResult.success) append(masterResult.message)
+                    userResult?.takeIf { !it.success }?.let {
+                        if (isNotEmpty()) append("; ")
+                        append(it.message)
+                    }
+                }.ifBlank { null }
+                if (success) SyncTtlManager.markSynced()
+                runCatching { reloadLocal(error) }
+                    .onFailure { t ->
+                        Timber.e(t, "sync: reloadLocal gagal")
+                        catalog = catalog.copy(
+                            decks = emptyList(),
+                            deckProgressMap = emptyMap(),
+                            totalVocabulary = 0,
+                            isLoading = false,
+                            loadError = "Gagal memuat data lokal: ${t.message}"
+                        )
+                    }
+            }
         } finally {
             catalog = catalog.copy(isSyncing = false)
             isSynchronizing = false
@@ -103,7 +115,7 @@ class DeckCatalogState(
         }
         catalog = catalog.copy(isRefreshing = true)
         try {
-            sync(showSkeleton = false, force = true)
+            withContext(Dispatchers.IO) { sync(showSkeleton = false, force = true) }
         } catch (t: Throwable) {
             Timber.e(t, "refresh gagal")
             catalog = catalog.copy(loadError = "Refresh gagal: ${t.message}")
