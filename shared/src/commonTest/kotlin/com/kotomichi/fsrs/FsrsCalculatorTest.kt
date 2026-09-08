@@ -22,11 +22,12 @@ class FsrsCalculatorTest {
     }
     
     @Test
-    fun `initial state for new card with Good rating`() {
+    fun `initial state for new card with Good rating stays in learning`() {
         val progress = FsrsCalculator.createInitialProgress("user1", 1L, Direction.KANJI_TO_MEANING)
         val result = FsrsCalculator.calculateNextReview(progress, Rating.GOOD)
         
-        assertEquals(CardState.REVIEW, result.newState)
+        // FSRS treats the first Good answer as a learning step
+        assertEquals(CardState.LEARNING, result.newState)
         assertTrue(result.newStability > 0)
         assertTrue(result.scheduledDays > 0)
     }
@@ -42,7 +43,9 @@ class FsrsCalculatorTest {
     }
     
     @Test
-    fun `learning state transitions`() {
+    fun `first answered card transitions`() {
+        // A card that has been answered once (reviewCount = 1) is treated as a
+        // REVIEW card by the derived SrsProgress state.
         val progress = SrsProgress(
             userId = "user1",
             vocabularyId = 1L,
@@ -55,13 +58,13 @@ class FsrsCalculatorTest {
             lapses = 0
         )
         
-        // Again in learning -> stays in learning
-        val resultAgain = FsrsCalculator.calculateNextReview(progress, Rating.AGAIN)
-        assertEquals(CardState.LEARNING, resultAgain.newState)
-        
-        // Good in learning -> moves to review
+        // Good keeps it in review
         val resultGood = FsrsCalculator.calculateNextReview(progress, Rating.GOOD)
         assertEquals(CardState.REVIEW, resultGood.newState)
+        
+        // Again sends it to relearning
+        val resultAgain = FsrsCalculator.calculateNextReview(progress, Rating.AGAIN)
+        assertEquals(CardState.RELEARNING, resultAgain.newState)
     }
     
     @Test
@@ -110,7 +113,7 @@ class FsrsCalculatorTest {
         assertTrue(FsrsCalculator.shouldUnlockNextDirection(Direction.HIRAGANA_TO_KANJI, 15.0))
         assertTrue(FsrsCalculator.shouldUnlockNextDirection(Direction.MEANING_TO_KANJI, 22.0))
         
-        assertTrue(!FsrsCalculator.shouldUnlockNextDirection(Direction.KANJI_TO_MEANING, 5.0))
+        assertTrue(!FsrsCalculator.shouldUnlockNextDirection(Direction.MEANING_TO_KANJI, 20.0))
         assertTrue(!FsrsCalculator.shouldUnlockNextDirection(Direction.HIRAGANA_TO_KANJI, 10.0))
     }
     

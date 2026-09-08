@@ -48,7 +48,10 @@ class BktCalculatorTest {
     
     @Test
     fun `not mastered below threshold`() {
-        val state = BktCalculator.createInitialState("skill1", "user1").copy(pKnown = 0.8)
+        // With default parameters a single correct answer from pKnown = 0.8 already
+        // lifts newPKnown above the 0.95 mastery threshold (posterior 0.947 + transit).
+        // 0.7 is the highest start that stays below threshold after one correct answer.
+        val state = BktCalculator.createInitialState("skill1", "user1").copy(pKnown = 0.7)
         val result = BktCalculator.updateSkill(state, true)
         
         assertTrue(!result.isMastered)

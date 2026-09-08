@@ -30,6 +30,7 @@ kotlin {
         }
         val commonTest by getting {
             dependencies {
+                implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.turbine)
                 implementation(libs.junit)
@@ -43,6 +44,7 @@ kotlin {
                 implementation(libs.androidx.security.crypto)
                 implementation(libs.ktor.client.android)
                 implementation(libs.sqldelight.android.driver)
+                implementation(libs.fsrs)
             }
         }
         val iosMain by getting {

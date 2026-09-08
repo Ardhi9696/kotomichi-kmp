@@ -33,6 +33,12 @@
 -keep class com.kotomichi.db.** { *; }
 -keep class io.requery.android.** { *; }
 
+# ── FSRS (java-fsrs / io.github.openspacedrepetition) ──────────────────
+# Lombok annotations on library classes are compile-time only.
+-dontwarn lombok.Generated
+-dontwarn lombok.NonNull
+-keep class io.github.openspacedrepetition.** { *; }
+
 # ── Koin ───────────────────────────────────────────────────────────────
 -keep class org.koin.** { *; }
 -keep class * extends org.koin.core.module.Module
