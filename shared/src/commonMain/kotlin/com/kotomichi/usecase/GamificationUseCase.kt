@@ -74,6 +74,7 @@ class GamificationUseCase(
                     bonusExp += STREAK_BONUS_EXP[index]
                 }
             }
+            progressRepository.addDailyStreakBonus(userId, today, bonusExp)
         }
         
         return newStreak to bonusExp

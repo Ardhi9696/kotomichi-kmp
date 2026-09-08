@@ -48,6 +48,7 @@ class AuthRepositoryImpl(
 ) : AuthRepository {
 
     private val userQueries = database.userProfileQueries
+    private val configQueries = database.appConfigQueries
 
     private val _currentUser = MutableStateFlow<ModelUserProfile?>(null)
     override val currentUser: Flow<ModelUserProfile?> = _currentUser.asStateFlow()
@@ -131,7 +132,7 @@ class AuthRepositoryImpl(
         val uid = userId ?: return
         try {
             val row = userQueries.selectById(uid).executeAsOneOrNull() ?: return
-            val profile = row.toModelProfile()
+            val profile = row.toModelProfile().withEmail(readEmail(uid))
             _currentUser.value = profile
             if (profile.displayName.contains('@') && profile.displayName.contains('.')) {
                 userQueries.upsert(
@@ -301,8 +302,9 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun publishProfile(profile: ModelUserProfile) = withContext(Dispatchers.IO) {
-        persistUser(profile)
-        _currentUser.value = profile
+        val restored = profile.withEmail(readEmail(profile.id))
+        persistUser(restored)
+        _currentUser.value = restored
     }
 
     override suspend fun syncRemoteProfile() = withContext(Dispatchers.IO) {
@@ -337,6 +339,7 @@ class AuthRepositoryImpl(
 
     private fun SupabaseUser.toModelProfile(): ModelUserProfile {
         val metaName = user_metadata["name"]?.jsonPrimitive?.contentOrNull
+        email?.takeIf { it.isNotBlank() }?.let { persistEmail(id, it) }
         return ModelUserProfile(
             id = id,
             displayName = metaName?.takeIf { it.isNotBlank() && !containsEmail(it) } ?: "Pengguna",
@@ -344,7 +347,8 @@ class AuthRepositoryImpl(
             preferredLocale = "id",
             createdAt = parseTimestamp(created_at),
             updatedAt = System.currentTimeMillis(),
-            theme = "system"
+            theme = "system",
+            email = email ?: ""
         )
     }
 
@@ -356,6 +360,21 @@ class AuthRepositoryImpl(
     )
 
     private fun containsEmail(value: String): Boolean = value.contains('@') && value.contains('.')
+
+    private fun emailKey(userId: String): String = "user_email:$userId"
+
+    private fun persistEmail(userId: String, email: String) {
+        runCatching {
+            configQueries.upsert(emailKey(userId), email, "Email pengguna dari auth", userId, System.currentTimeMillis())
+        }
+    }
+
+    private fun readEmail(userId: String): String =
+        runCatching { configQueries.selectByKey(emailKey(userId)).executeAsOneOrNull()?.value_json ?: "" }
+            .getOrDefault("")
+
+    private fun ModelUserProfile.withEmail(email: String): ModelUserProfile =
+        if (email.isBlank()) this else copy(email = email)
 
     private fun parseTimestamp(iso: String?): Long {
         if (iso.isNullOrBlank()) return System.currentTimeMillis()

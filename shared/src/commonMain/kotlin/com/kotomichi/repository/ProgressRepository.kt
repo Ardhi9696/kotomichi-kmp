@@ -30,6 +30,10 @@ interface ProgressRepository {
     suspend fun getDailyStats(userId: String, days: Int): List<DailyStats>
     suspend fun getUserStatistics(userId: String): UserStatistics
     suspend fun getHeatmapData(userId: String, days: Int): List<HeatmapData>
+
+    suspend fun getConfigValue(key: String): String?
+    suspend fun setConfigValue(key: String, value: String)
+    suspend fun addDailyStreakBonus(userId: String, dayStart: Long, bonusExp: Long)
     
     fun observeDueCount(userId: String): Flow<Int>
     fun observeDeckProgress(userId: String, deckId: Long): Flow<DeckProgress>

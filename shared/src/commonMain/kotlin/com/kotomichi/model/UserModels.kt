@@ -16,13 +16,13 @@ data class UserProfile(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val theme: String = "system",
-    val lastSeenAt: Long? = null
+    val lastSeenAt: Long? = null,
+    val email: String = ""
 ) {
     val name: String get() = displayName
     val currentLevel: Int get() = level
     val totalExp: Long get() = exp.toLong()
     val lastActiveDate: Long get() = lastSeenAt ?: lastReviewDate ?: 0L
-    val email: String get() = ""
 
     fun expForNextLevel(): Long {
         val base = 100L

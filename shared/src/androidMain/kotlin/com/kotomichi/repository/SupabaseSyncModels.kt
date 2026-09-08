@@ -1,6 +1,7 @@
 package com.kotomichi.repository
 
 import kotlinx.serialization.Serializable
+@Serializable
 internal data class SupabaseSrsProgress(
     val user_id: String,
     val vocabulary_id: Long,

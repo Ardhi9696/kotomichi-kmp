@@ -167,7 +167,7 @@ class ProgressRepositoryImpl(
                     reviewCount = logs.size,
                     correctCount = logs.count { it.correctness },
                     totalTimeMs = logs.sumOf { it.elapsedMs },
-                    expEarned = logs.sumOf { estimateExpEarned(it) }
+                    expEarned = logs.sumOf { estimateExpEarned(it) } + readDailyStreakBonus(userId, day)
                 )
             }
             .sortedBy { it.date }
@@ -213,6 +213,30 @@ class ProgressRepositoryImpl(
         stats.map { HeatmapData(it.date, it.totalCount) }
     }
 
+    override suspend fun getConfigValue(key: String): String? = withContext(Dispatchers.IO) {
+        configQueries.selectByKey(key).executeAsOneOrNull()?.value_json
+    }
+
+    override suspend fun setConfigValue(key: String, value: String) = withContext(Dispatchers.IO) {
+        configQueries.upsert(key, value, null, null, System.currentTimeMillis())
+    }
+
+    override suspend fun addDailyStreakBonus(userId: String, dayStart: Long, bonusExp: Long) {
+        if (bonusExp <= 0L) return
+        withContext(Dispatchers.IO) {
+            val key = streakBonusKey(userId, dayStart)
+            val current = configQueries.selectByKey(key).executeAsOneOrNull()?.value_json?.toLongOrNull() ?: 0L
+            configQueries.upsert(key, (current + bonusExp).toString(), null, null, System.currentTimeMillis())
+        }
+    }
+
+    private fun streakBonusKey(userId: String, dayStart: Long): String =
+        "streak_bonus:$userId:$dayStart"
+
+    private fun readDailyStreakBonus(userId: String, dayStart: Long): Long =
+        configQueries.selectByKey(streakBonusKey(userId, dayStart)).executeAsOneOrNull()
+            ?.value_json?.toLongOrNull() ?: 0L
+
     override fun observeDueCount(userId: String): Flow<Int> {
         return srsQueries.observeDueCount(userId, System.currentTimeMillis())
             .asFlow()
@@ -234,7 +258,7 @@ class ProgressRepositoryImpl(
      * jumlah per hari mencerminkan aktivitas belajar yang sesungguhnya.
      */
     private fun estimateExpEarned(log: ModelReviewLog): Long {
-        if (log.isNew) return com.kotomichi.usecase.GamificationUseCase.EXP_LEARN_NEW_CARD
+        if (log.isNew) return if (log.correctness) com.kotomichi.usecase.GamificationUseCase.EXP_LEARN_NEW_CARD else 0L
         if (!log.correctness) return 0L
         return when (log.rating) {
             Rating.EASY -> com.kotomichi.usecase.GamificationUseCase.EXP_REVIEW_EASY

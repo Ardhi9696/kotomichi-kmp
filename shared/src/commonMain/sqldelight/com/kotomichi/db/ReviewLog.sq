@@ -30,3 +30,12 @@ selectMaxId:
 SELECT COALESCE(MAX(id), 0)
 FROM ReviewLog
 WHERE user_id = :userId;
+
+selectExistsByIdentity:
+SELECT COUNT(*)
+FROM ReviewLog
+WHERE user_id = :userId
+  AND vocabulary_id = :vocabularyId
+  AND direction = :direction
+  AND reviewed_at / 1000 = :reviewedAtSeconds
+  AND rating = :rating;

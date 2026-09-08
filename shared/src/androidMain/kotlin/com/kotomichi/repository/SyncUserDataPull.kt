@@ -87,15 +87,23 @@ internal class SyncUserDataPull(
             }
             totalSynced += progressList.size
 
-            // Pull review logs
+            // Pull review logs. Dedupe by content identity (user, vocab, direction,
+            // reviewed_at ada di detik, rating) BUKAN dengan membandingkan id.
+            // Local memakai id auto-increment positif, sedangkan remote memakai id
+            // hash negatif yang deterministik -> membandingkan `id > latestLocal`
+            // selalu gagal menarik log antar-perangkat (log dari device lain tidak
+            // pernah masuk). Identitas konten menyamakan log yang sama di kedua sisi.
             val logs = pullRemoteReviewLogs(token)
-            val latestLocal = try {
-                reviewQueries.selectMaxId(uid).executeAsOne()
-            } catch (e: Exception) {
-                0L
-            }
-            logs.filter { it.id > latestLocal }.forEach { log ->
+            logs.forEach { log ->
                 try {
+                    val exists = reviewQueries.selectExistsByIdentity(
+                        userId = log.userId,
+                        vocabularyId = log.vocabularyId,
+                        direction = log.direction.ordinal.toLong(),
+                        reviewedAtSeconds = log.reviewedAt / 1000,
+                        rating = log.rating.ordinal.toLong()
+                    ).executeAsOne()
+                    if (exists > 0L) return@forEach
                     reviewQueries.insertWithRemoteId(
                         id = log.id,
                         user_id = log.userId,
