@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,7 +57,7 @@ fun HubScreen(
         try {
             loadingVocab = true
             val repo = get<VocabRepository>()
-            vocabList = repo.getVocabularyByDeck(deck.id).take(8)
+            vocabList = repo.getVocabularyByDeck(deck.id)
         } catch (e: Exception) {
             errorVocab = e.message ?: "Gagal memuat kosakata"
         } finally {
@@ -75,71 +73,19 @@ fun HubScreen(
         verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)
     ) {
         item {
-            // ── Kartu deck context mini ──
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(KotomichiSpacing.lg),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Deck aktif",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = deck.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = "${deck.vocabularyCount} kosakata",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        item {
-            // ── Grid aksi 2×2 (Column + Row, bukan LazyVerticalGrid) ──
+            // ── Daftar aksi menu (vertikal, full-width) ──
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
             ) {
-                val menuList = LearnMenu.entries.toList()
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
-                ) {
-                    menuList.take(2).forEach { menu ->
-                        ActionCard(
-                            menu = menu,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onMenuClick(menu) }
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
-                ) {
-                    menuList.drop(2).take(2).forEach { menu ->
-                        ActionCard(
-                            menu = menu,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onMenuClick(menu) }
-                        )
-                    }
+                LearnMenu.entries.forEach { menu ->
+                    ActionCard(
+                        icon = menu.icon,
+                        title = menu.title,
+                        subtitle = menu.subtitle,
+                        badgeCount = menu.badgeCount,
+                        onClick = { onMenuClick(menu) }
+                    )
                 }
             }
         }

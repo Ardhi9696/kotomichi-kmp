@@ -51,11 +51,6 @@ fun LearnTopBar(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "belajar",
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Light),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
                 text = "Belajar",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold

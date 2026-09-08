@@ -44,6 +44,14 @@ fun StudyHubTab(
 
     // ── Screen: Menu detail / placeholder ──
     activeMenu?.let { menu ->
+        if (menu == LearnMenu.CekKemampuan && selectedDeck != null) {
+            CekKemampuanScreen(
+                paddingValues = paddingValues,
+                deck = selectedDeck,
+                onBack = { onActivateMenu(null) }
+            )
+            return
+        }
         MenuDetailScreen(
             menu = menu,
             onBack = { onActivateMenu(null) }

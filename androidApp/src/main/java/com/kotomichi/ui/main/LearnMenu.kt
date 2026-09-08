@@ -16,7 +16,8 @@ import androidx.compose.material.icons.rounded.LocalLibrary
 enum class LearnMenu(
     val icon: ImageVector,
     val title: String,
-    val subtitle: String
+    val subtitle: String,
+    val badgeCount: Int = 0
 ) {
     CekKemampuan(
         icon = androidx.compose.material.icons.Icons.Filled.AssignmentTurnedIn,

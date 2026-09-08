@@ -21,6 +21,7 @@ desugar = "2.1.4"
 googleServices = "4.4.1"
 crashlyticsPlugin = "3.0.2"
 firebaseBom = "33.7.0"
+furiganable = "0.3.1"
 
 [libraries]
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -54,6 +55,7 @@ androidx-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 androidx-compose-material-icons = { module = "androidx.compose.material:material-icons-extended" }
+furiganable = { module = "com.turtlekazu.furiganable:compose-m3", version.ref = "furiganable" }
 android-material = { module = "com.google.android.material:material", version.ref = "material" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
