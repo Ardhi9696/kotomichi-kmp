@@ -7,6 +7,7 @@ data class Vocabulary(
     val id: Long,
     val kanji: String? = null,
     val hiragana: String,
+    val furigana: String? = null,
     val romaji: String? = null,
     val jlptLevel: JlptLevel? = null,
     val partOfSpeech: String? = null,

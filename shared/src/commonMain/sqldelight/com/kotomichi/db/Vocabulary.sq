@@ -17,7 +17,8 @@ CREATE TABLE Vocabulary (
     na_adjective INTEGER NOT NULL DEFAULT 0,
     jidoushi INTEGER NOT NULL DEFAULT 0,
     tadoushi INTEGER NOT NULL DEFAULT 0,
-    verb_collocation INTEGER NOT NULL DEFAULT 0
+    verb_collocation INTEGER NOT NULL DEFAULT 0,
+    furigana TEXT
 );
 
 CREATE INDEX idx_vocab_kanji ON Vocabulary(kanji);

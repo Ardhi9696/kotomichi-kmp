@@ -24,11 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kotomichi.furigana.FuriganaFormatter
 import com.kotomichi.model.Vocabulary
+import com.kotomichi.ui.components.FuriganaText
 import com.kotomichi.ui.theme.KotomichiSpacing
-import com.kotomichi.util.buildFuriganaFormat
-import com.kotomichi.util.containsKanji
-import com.turtlekazu.furiganable.compose.m3.TextWithReading
 
 /**
  * Satu baris kosakata dalam daftar. Dapat diklik untuk membuka detail.
@@ -39,13 +38,9 @@ import com.turtlekazu.furiganable.compose.m3.TextWithReading
 @Composable
 fun VocabRow(vocab: Vocabulary, lastItem: Boolean, onClick: () -> Unit) {
     val levelLabel = if (vocab.jftBasic) "JFT" else vocab.jlptLevel?.name
-    val displayText = vocab.kanji?.trim().takeIf { it?.isNotEmpty() == true } ?: vocab.hiragana
-    val reading = vocab.hiragana.ifEmpty { null }
-    val formattedText = if (reading != null) {
-        buildFuriganaFormat(displayText, reading) ?: displayText
-    } else {
-        displayText
-    }
+    val formattedText =
+        FuriganaFormatter.formatted(vocab.kanji, vocab.hiragana, vocab.furigana)
+            ?: (vocab.kanji?.trim().takeIf { it?.isNotEmpty() == true } ?: vocab.hiragana)
 
     Row(
         modifier = Modifier
@@ -59,8 +54,8 @@ fun VocabRow(vocab: Vocabulary, lastItem: Boolean, onClick: () -> Unit) {
             LevelBadge(level = levelLabel)
         }
         Column(modifier = Modifier.width(90.dp)) {
-            TextWithReading(
-                formattedText = formattedText,
+            FuriganaText(
+                text = formattedText,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                 maxLines = 2
             )

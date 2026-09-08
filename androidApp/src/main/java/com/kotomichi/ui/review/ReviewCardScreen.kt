@@ -36,7 +36,10 @@ import com.kotomichi.model.Rating
 import com.kotomichi.model.SrsProgress
 import com.kotomichi.model.Vocabulary
 import com.kotomichi.ui.common.getAnswerText
+import com.kotomichi.ui.common.getAnswerFurigana
+import com.kotomichi.ui.common.getQuestionFurigana
 import com.kotomichi.ui.common.getQuestionText
+import com.kotomichi.ui.components.FuriganaText
 import com.kotomichi.ui.components.KotomichiCard
 import com.kotomichi.ui.components.KotomichiCardVariant
 import com.kotomichi.ui.components.KotomichiProgressBar
@@ -138,8 +141,9 @@ fun ReviewCardScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
                             ) {
-                                Text(
-                                    text = getQuestionText(vocab, progress.direction),
+                                FuriganaText(
+                                    text = getQuestionFurigana(vocab, progress.direction)
+                                        ?: getQuestionText(vocab, progress.direction),
                                     style = if (progress.direction.name.startsWith("MEANING")) {
                                         MaterialTheme.typography.headlineMedium
                                     } else {
@@ -167,8 +171,9 @@ fun ReviewCardScreen(
                                         color = MaterialTheme.colorScheme.outlineVariant
                                     )
 
-                                    Text(
-                                        text = getAnswerText(vocab, progress.direction),
+                                    FuriganaText(
+                                        text = getAnswerFurigana(vocab, progress.direction)
+                                            ?: getAnswerText(vocab, progress.direction),
                                         style = MaterialTheme.typography.headlineMedium,
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.primary

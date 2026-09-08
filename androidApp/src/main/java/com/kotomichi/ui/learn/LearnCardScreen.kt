@@ -31,8 +31,11 @@ import com.kotomichi.model.Direction
 import com.kotomichi.model.Rating
 import com.kotomichi.model.Vocabulary
 import com.kotomichi.ui.common.getAnswerText
+import com.kotomichi.ui.common.getAnswerFurigana
 import com.kotomichi.ui.common.getPronunciation
+import com.kotomichi.ui.common.getQuestionFurigana
 import com.kotomichi.ui.common.getQuestionText
+import com.kotomichi.ui.components.FuriganaText
 import com.kotomichi.ui.components.KotomichiCard
 import com.kotomichi.ui.components.KotomichiCardVariant
 import com.kotomichi.ui.components.KotomichiProgressBar
@@ -111,8 +114,9 @@ fun LearnCardScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
                             ) {
-                                Text(
-                                    text = getQuestionText(card, currentDirection),
+                                FuriganaText(
+                                    text = getQuestionFurigana(card, currentDirection)
+                                        ?: getQuestionText(card, currentDirection),
                                     style = if (currentDirection.name.startsWith("MEANING")) {
                                         MaterialTheme.typography.headlineMedium
                                     } else {
@@ -148,8 +152,9 @@ fun LearnCardScreen(
                                         color = MaterialTheme.colorScheme.outlineVariant
                                     )
 
-                                    Text(
-                                        text = getAnswerText(card, currentDirection),
+                                    FuriganaText(
+                                        text = getAnswerFurigana(card, currentDirection)
+                                            ?: getAnswerText(card, currentDirection),
                                         style = MaterialTheme.typography.headlineMedium,
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.primary
