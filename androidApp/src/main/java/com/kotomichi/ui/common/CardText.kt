@@ -32,3 +32,12 @@ fun getAnswerText(card: Vocabulary, direction: Direction): String {
         Direction.MEANING_TO_KANJI -> card.kanji ?: card.hiragana
     }
 }
+
+/** Jawaban polos tanpa hint kanji/hiragana dalam tanda kurung (untuk kuis Belajar). */
+fun getPlainAnswerText(card: Vocabulary, direction: Direction): String {
+    return when (direction) {
+        Direction.KANJI_TO_MEANING, Direction.HIRAGANA_TO_MEANING -> card.meaningIndonesian
+        Direction.KANJI_TO_HIRAGANA, Direction.MEANING_TO_HIRAGANA -> card.hiragana
+        Direction.HIRAGANA_TO_KANJI, Direction.MEANING_TO_KANJI -> card.kanji ?: card.hiragana
+    }
+}

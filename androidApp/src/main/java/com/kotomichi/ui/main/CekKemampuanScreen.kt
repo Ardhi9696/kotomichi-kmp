@@ -3,11 +3,14 @@
  * Responsibility: Layar "Cek Kemampuan" - memeriksa kemampuan memori kosakata
  *                 dalam deck via flashcard. Berisi progress bar posisi kartu,
  *                 kartu flip dengan swipe penilaian (kanan=tahu, kiri=tidak tahu),
- *                 dan tombol penilaian di bawah kartu.
+ *                 tombol penilaian di bawah kartu, dan ringkasan hasil setelah
+ *                 kartu terakhir dinilai.
  */
 package com.kotomichi.ui.main
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,11 +21,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,8 +43,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kotomichi.di.get
 import com.kotomichi.model.Deck
@@ -60,6 +72,8 @@ fun CekKemampuanScreen(
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var currentIndex by remember(deck.id) { mutableIntStateOf(0) }
+    var knownCount by remember(deck.id) { mutableIntStateOf(0) }
+    var finished by remember(deck.id) { mutableStateOf(false) }
 
     LaunchedEffect(deck.id) {
         try {
@@ -80,16 +94,16 @@ fun CekKemampuanScreen(
             .padding(horizontal = KotomichiSpacing.lg, vertical = KotomichiSpacing.md),
         verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)
     ) {
-        // ── Penghitung kartu ──
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val list = vocabList
-            if (list != null && list.isNotEmpty()) {
+        val list = vocabList
+        if (list != null && list.isNotEmpty() && !finished) {
+            // ── Penghitung kartu ──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "${currentIndex + 1} / ${list.size}",
+                    text = "${currentIndex.coerceIn(0, list.lastIndex) + 1} / ${list.size}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -97,6 +111,26 @@ fun CekKemampuanScreen(
         }
 
         when {
+            finished && !list.isNullOrEmpty() -> {
+                val asked = list.size
+                val known = knownCount
+                val unknown = asked - known
+                KotomichiQuizSummary(
+                    total = asked,
+                    known = known,
+                    unknown = unknown,
+                    onRetry = {
+                        currentIndex = 0
+                        knownCount = 0
+                        finished = false
+                    },
+                    onBack = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+            }
+
             loading && vocabList == null -> {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = KotomichiSpacing.xl),
@@ -127,18 +161,19 @@ fun CekKemampuanScreen(
             }
 
             else -> {
-                val list = vocabList!!
-                val safeIndex = currentIndex.coerceIn(0, list.lastIndex)
-                val current = list[safeIndex]
-                val isLast = safeIndex == list.lastIndex
+                val items = list ?: return@Column
+                val totalSize = items.size
+                val safeIndex = currentIndex.coerceIn(0, items.lastIndex)
+                val current = items[safeIndex]
 
-                val advance = {
-                    if (safeIndex < list.lastIndex) currentIndex = safeIndex + 1 else onBack()
+                val advance = { known: Boolean ->
+                    if (known) knownCount++
+                    if (safeIndex < items.lastIndex) currentIndex = safeIndex + 1 else finished = true
                 }
 
                 // ── Progress bar ──
                 LinearProgressIndicator(
-                    progress = { (safeIndex + 1).toFloat() / list.size },
+                    progress = { (safeIndex + 1).toFloat() / totalSize },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(KotomichiDimens.progressTrackMedium),
@@ -146,10 +181,10 @@ fun CekKemampuanScreen(
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
 
-                // ── Kartu flash (swipe kiri/kana) ──
+                // ── Kartu flash (swipe kiri/kanan) ──
                 Flashcard(
                     vocab = current,
-                    onAssess = { advance() },
+                    onAssess = { known -> advance(known) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -161,7 +196,7 @@ fun CekKemampuanScreen(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
 
                 // ── Tombol penilaian ──
@@ -173,30 +208,146 @@ fun CekKemampuanScreen(
                         label = "Tidak tahu",
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        onClick = { advance() },
+                        onClick = { advance(false) },
                         modifier = Modifier.weight(1f)
                     )
                     AssessmentButton(
                         label = "Tahu",
                         containerColor = MaterialTheme.extendedColors.successContainer,
                         contentColor = MaterialTheme.extendedColors.onSuccessContainer,
-                        onClick = { advance() },
+                        onClick = { advance(true) },
                         modifier = Modifier.weight(1f)
-                    )
-                }
-
-                if (isLast) {
-                    Spacer(Modifier.height(KotomichiSpacing.xs))
-                    Text(
-                        text = "Kartu terakhir — selesai untuk kembali ke hub",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         }
 
         Spacer(Modifier.height(KotomichiSpacing.xs))
+    }
+}
+
+/**
+ * Ringkasan hasil Cek Kemampuan yang tampil setelah semua kartu dinilai.
+ * Menampilkan jumlah yang diingat (tahu) dan yang belum, serta pilihan
+ * mengulang kuis atau kembali ke Study Hub.
+ * @param total Jumlah kartu yang diuji
+ * @param known Jumlah kartu yang dijawab "tahu"
+ * @param unknown Jumlah kartu yang dijawab "tidak tahu"
+ * @param onRetry Callback untuk mengulang dari awal
+ * @param onBack Callback kembali ke Study Hub
+ * @param modifier Modifier eksternal
+ */
+@Composable
+private fun KotomichiQuizSummary(
+    total: Int,
+    known: Int,
+    unknown: Int,
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(top = KotomichiSpacing.xl2),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.lg)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(KotomichiDimens.completionIconSize)
+        )
+        Text("Cek Kemampuan Selesai", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            text = "Kamu mengingat $known dari $total kosakata",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
+        ) {
+            SummaryCountCard(
+                label = "Diingat",
+                count = known,
+                containerColor = MaterialTheme.extendedColors.successContainer,
+                contentColor = MaterialTheme.extendedColors.onSuccessContainer
+            )
+            SummaryCountCard(
+                label = "Belum diingat",
+                count = unknown,
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = KotomichiSpacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(KotomichiSpacing.md)
+        ) {
+            OutlinedButton(
+                onClick = onRetry,
+                modifier = Modifier.weight(1f).height(KotomichiDimens.ratingButtonHeight)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Replay,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(KotomichiSpacing.sm))
+                Text("Ulangi", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+            }
+            Button(
+                onClick = onBack,
+                modifier = Modifier.weight(1f).height(KotomichiDimens.ratingButtonHeight)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Home,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(KotomichiSpacing.sm))
+                Text("Ke Study Hub", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+            }
+        }
+    }
+}
+
+/**
+ * Kartu berisi label dan jumlah untuk ringkasan hasil.
+ */
+@Composable
+private fun SummaryCountCard(
+    label: String,
+    count: Int,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(KotomichiSpacing.md))
+            .height(52.dp)
+            .padding(horizontal = KotomichiSpacing.md)
+            .background(containerColor),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            color = contentColor
+        )
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = contentColor
+        )
     }
 }
 

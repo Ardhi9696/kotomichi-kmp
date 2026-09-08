@@ -19,6 +19,7 @@ import com.kotomichi.di.get
 import com.kotomichi.ui.components.KotomichiDestination
 import com.kotomichi.ui.theme.DeckPreference
 import com.kotomichi.usecase.AuthUseCase
+import com.kotomichi.usecase.BelajarMode
 import com.kotomichi.usecase.GamificationUseCase
 import com.kotomichi.usecase.ReviewCardUseCase
 
@@ -53,6 +54,23 @@ fun rememberMainScreenState(
     val selectedDeck = deckCatalog.decks.firstOrNull { it.id == selectedDeckId }
 
     var activeMenu by rememberSaveable { mutableStateOf<LearnMenu?>(null) }
+    var belajarMode by rememberSaveable { mutableStateOf<BelajarMode?>(null) }
+    var showMenuExitConfirm by rememberSaveable { mutableStateOf(false) }
+
+    /**
+     * Minta konfirmasi keluar dari menu aktif (Cek Kemampuan, Belajar, Review).
+     * Progress sesi sudah tersimpan otomatis, jadi hanya menampilkan dialog.
+     */
+    fun requestMenuExit() {
+        if (activeMenu != null) showMenuExitConfirm = true
+    }
+
+    /** Konfirmasi keluar: tutup dialog lalu reset menu aktif + mode belajar. */
+    fun confirmMenuExit() {
+        showMenuExitConfirm = false
+        activeMenu = null
+        belajarMode = null
+    }
 
     // Reset aktif menu ketika pindah tab lain
     LaunchedEffect(selected) {
@@ -93,7 +111,16 @@ fun rememberMainScreenState(
         showDeckPicker = showDeckPicker,
         setShowDeckPicker = { showDeckPicker = it },
         activeMenu = activeMenu,
-        setActiveMenu = { activeMenu = it },
+        setActiveMenu = { newMenu ->
+            activeMenu = newMenu
+            if (newMenu == null) belajarMode = null
+        },
+        belajarMode = belajarMode,
+        setBelajarMode = { belajarMode = it },
+        showMenuExitConfirm = showMenuExitConfirm,
+        requestMenuExit = ::requestMenuExit,
+        confirmMenuExit = ::confirmMenuExit,
+        dismissMenuExitConfirm = { showMenuExitConfirm = false },
         currentLevel = currentLevel,
         totalExp = totalExp,
         currentLevelExp = currentLevelExp,
@@ -129,6 +156,12 @@ data class MainScreenState(
     val setShowDeckPicker: (Boolean) -> Unit,
     val activeMenu: LearnMenu?,
     val setActiveMenu: (LearnMenu?) -> Unit,
+    val belajarMode: BelajarMode?,
+    val setBelajarMode: (BelajarMode?) -> Unit,
+    val showMenuExitConfirm: Boolean,
+    val requestMenuExit: () -> Unit,
+    val confirmMenuExit: () -> Unit,
+    val dismissMenuExitConfirm: () -> Unit,
     val currentLevel: Int,
     val totalExp: Long,
     val currentLevelExp: Long,

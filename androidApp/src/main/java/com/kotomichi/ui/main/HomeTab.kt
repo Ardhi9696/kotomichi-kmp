@@ -72,20 +72,25 @@ fun HomeTab(
         userStreak = currentStreak
     )
 
-    PullToRefreshBox(
-        isRefreshing = deckCatalog.isRefreshing,
-        onRefresh = onRefresh,
-        modifier = Modifier.fillMaxSize()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = KotomichiSpacing.lg),
-                contentPadding = PaddingValues(vertical = KotomichiSpacing.lg),
-                verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.lg)
-            ) {
+        PullToRefreshBox(
+            isRefreshing = deckCatalog.isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = KotomichiSpacing.lg),
+                    contentPadding = PaddingValues(vertical = KotomichiSpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.lg)
+                ) {
                 if (deckCatalog.isLoading) {
                     item {
                         Column(
@@ -145,10 +150,10 @@ fun HomeTab(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .padding(top = paddingValues.calculateTopPadding())
                 )
             }
         }
+    }
     }
 }
 
@@ -408,13 +413,17 @@ private fun rememberHomeCalendar(
         val todayMinutes = dailyStats
             .filter { it.date in today.atStartOfDay(zone).toInstant().toEpochMilli() until todayEndMs }
             .sumOf { it.totalTimeMs } / 60_000
+        val expToday = dailyStats
+            .filter { it.date in today.atStartOfDay(zone).toInstant().toEpochMilli() until todayEndMs }
+            .sumOf { it.expEarned }
         val daysThisMonth = dailyStats.count { it.date in thisMonthStart until todayEndMs && it.totalCount > 0 }
         val totalMinutes = dailyStats.sumOf { it.totalTimeMs } / 60_000
         CalendarSummary(
             minutesToday = todayMinutes.toInt(),
             dayStreak = userStreak,
             daysThisMonth = daysThisMonth,
-            totalMinutes = totalMinutes.toInt()
+            totalMinutes = totalMinutes.toInt(),
+            expToday = expToday.toInt()
         )
     }
 

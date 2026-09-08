@@ -22,10 +22,11 @@ fun MainScreen(
     val context = LocalContext.current
     val state = rememberMainScreenState(context, onExitApp)
 
-    // Back handler: jika ada menu aktif, tutup menu; jika tidak, tampilkan dialog keluar
+    // Back handler: jika ada menu aktif, minta konfirmasi keluar menu;
+    // jika tidak, tampilkan dialog keluar aplikasi
     BackHandler {
         if (state.activeMenu != null) {
-            state.setActiveMenu(null)
+            state.requestMenuExit()
         } else {
             state.setShowExitDialog(true)
         }
@@ -46,7 +47,7 @@ fun MainScreen(
                 expProgress = state.expProgress,
                 onDebugTap = { state.setShowDebug(true) },
                 onDeckClick = { state.setShowDeckPicker(true) },
-                onMenuBack = { state.setActiveMenu(null) }
+                onMenuBack = state.requestMenuExit
             )
         },
         bottomBar = {
@@ -65,8 +66,10 @@ fun MainScreen(
             deckCatalog = state.deckCatalog,
             dueCount = state.dueCount,
             activeMenu = state.activeMenu,
+            belajarMode = state.belajarMode,
             showDeckPicker = state.showDeckPicker,
             selectedDeck = state.selectedDeck,
+            setBelajarMode = state.setBelajarMode,
             onRefresh = { state.scope.launch { state.catalogState.refresh() } },
             onSelectDeck = { deck ->
                 state.setSelectedDeckId(deck.id)
@@ -75,6 +78,7 @@ fun MainScreen(
             },
             onDismissDeckPicker = { state.setShowDeckPicker(false) },
             onActivateMenu = state.setActiveMenu,
+            onRequestMenuExit = state.requestMenuExit,
             onLogout = {
                 state.setIsLoggingOut(true)
                 state.scope.launch {
@@ -98,6 +102,9 @@ fun MainScreen(
         showExitDialog = state.showExitDialog,
         showDebug = state.showDebug,
         debugInfo = state.debugInfo,
+        showMenuExitConfirm = state.showMenuExitConfirm,
+        onMenuExitConfirm = state.confirmMenuExit,
+        onMenuExitDismiss = state.dismissMenuExitConfirm,
         onExitApp = state.onExitApp,
         onExitDialogDismiss = { state.setShowExitDialog(false) },
         onDebugDismiss = { state.setShowDebug(false) }

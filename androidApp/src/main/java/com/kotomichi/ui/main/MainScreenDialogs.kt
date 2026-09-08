@@ -15,12 +15,27 @@ fun MainScreenDialogs(
     showExitDialog: Boolean,
     showDebug: Boolean,
     debugInfo: String,
+    showMenuExitConfirm: Boolean,
+    onMenuExitConfirm: () -> Unit,
+    onMenuExitDismiss: () -> Unit,
     onExitApp: () -> Unit,
     onExitDialogDismiss: () -> Unit,
     onDebugDismiss: () -> Unit
 ) {
     if (isLoggingOut) {
         KotomichiGlobalLoadingOverlay(isVisible = true)
+    }
+
+    if (showMenuExitConfirm) {
+        KotomichiDialog(
+            title = "Keluar dari Menu",
+            text = "Progress sesi kamu sudah tersimpan. Yakin ingin keluar dari menu ini?",
+            confirmLabel = "Keluar",
+            dismissLabel = "Batal",
+            isDestructive = true,
+            onConfirm = onMenuExitConfirm,
+            onDismiss = onMenuExitDismiss
+        )
     }
 
     if (showExitDialog) {

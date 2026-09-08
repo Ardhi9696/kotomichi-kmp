@@ -1,9 +1,9 @@
 /**
  * File: Flashcard.kt
  * Responsibility: Komponen kartu flash untuk Cek Kemampuan. Sisi depan menampilkan
- *                 kosakata (kanji + furigana), sisi belakang menampilkan cara baca,
+ *                 kosakata tanpa furigana, sisi belakang menampilkan cara baca,
  *                 arti, contoh kalimat (jika ada), badge level, dan catatan (jika ada).
- *                 Kartu berputar (flip) saat diketuk dan dapat di-swipe:
+ *                 Kartu berputar (flip 3D) saat diketuk dan dapat di-swipe:
  *                 kanan = tahu (success), kiri = tidak tahu (error).
  */
 package com.kotomichi.ui.main
@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import com.kotomichi.model.Vocabulary
 import com.kotomichi.ui.theme.KotomichiSpacing
 import com.kotomichi.ui.theme.extendedColors
-import com.turtlekazu.furiganable.compose.m3.TextWithReading
 import kotlinx.coroutines.launch
 
 /**
@@ -155,10 +154,25 @@ fun Flashcard(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                if (showFront) {
-                    FlashcardFront(vocab = vocab)
-                } else {
-                    FlashcardBack(vocab = vocab)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            rotationY = rotation
+                            cameraDistance = 8f * density
+                        }
+                ) {
+                    if (showFront) {
+                        FlashcardFront(vocab = vocab)
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { rotationY = 180f }
+                        ) {
+                            FlashcardBack(vocab = vocab)
+                        }
+                    }
                 }
             }
             // Indikator ketuk (hanya di depan, sisi belum dibalik penuh)
@@ -200,18 +214,11 @@ private fun SwipeIndicator(
 }
 
 /**
- * Sisi depan kartu: menampilkan kosakata (kanji dengan furigana, atau hiragana saja).
+ * Sisi depan kartu: menampilkan kosakata (kanji atau hiragana) tanpa furigana.
  */
 @Composable
 private fun FlashcardFront(vocab: Vocabulary) {
     val displayText = vocab.kanji?.trim().takeIf { it?.isNotEmpty() == true } ?: vocab.hiragana
-    val hasKanji = vocab.kanji?.trim()?.isNotEmpty() == true && containsKanji(vocab.kanji!!)
-    val reading = vocab.hiragana.ifEmpty { null }
-    val formattedText = if (hasKanji && reading != null) {
-        "[$displayText[$reading]]"
-    } else {
-        displayText
-    }
 
     Column(
         modifier = Modifier
@@ -220,8 +227,8 @@ private fun FlashcardFront(vocab: Vocabulary) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        TextWithReading(
-            formattedText = formattedText,
+        Text(
+            text = displayText,
             style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
             textAlign = TextAlign.Center
         )
@@ -361,27 +368,23 @@ private fun SectionDetail(label: String, content: @Composable () -> Unit) {
 }
 
 /**
- * Deteksi apakah string mengandung karakter kanji (CJK Unified Ideographs U+4E00–U+9FFF).
- * Jika true, furigana ditampilkan pada sisi depan kartu.
- */
-private fun containsKanji(text: String): Boolean =
-    text.any { it.code in 0x4E00..0x9FFF }
-
-/**
  * Bangun catatan dari kolom tata bahasa (part of speech, jenis kata kerja/adjektiva)
  * yang tersedia pada model kosakata. Mengembalikan string kosong jika tidak ada.
  */
 private fun vocabNotes(vocab: Vocabulary): String {
     val parts = mutableListOf<String>()
-    val partOfSpeech = vocab.partOfSpeech
-    if (!partOfSpeech.isNullOrBlank()) parts.add(partOfSpeech)
-    if (vocab.godanVerb) parts.add("Godan verb")
-    if (vocab.ichidanVerb) parts.add("Ichidan verb")
-    if (vocab.fukisoku) parts.add("Fukisoku")
-    if (vocab.iAdjective) parts.add("I-adjective")
-    if (vocab.naAdjective) parts.add("Na-adjective")
-    if (vocab.jidoushi) parts.add("Jidoushi")
-    if (vocab.tadoushi) parts.add("Tadoushi")
-    if (vocab.verbCollocation) parts.add("Verb collocation")
+    if (vocab.godanVerb) parts.add("五段動詞")
+    if (vocab.ichidanVerb) parts.add("一段動詞")
+    if (vocab.fukisoku) parts.add("不規則動詞")
+    if (vocab.iAdjective) parts.add("イ形容詞")
+    if (vocab.naAdjective) parts.add("ナ形容詞")
+    if (vocab.jidoushi) parts.add("自動詞")
+    if (vocab.tadoushi) parts.add("他動詞")
+    if (vocab.verbCollocation) parts.add("連語")
+    val hasType =
+        vocab.godanVerb || vocab.ichidanVerb || vocab.fukisoku ||
+        vocab.iAdjective || vocab.naAdjective ||
+        vocab.jidoushi || vocab.tadoushi || vocab.verbCollocation
+    if (!hasType) parts.add("名詞")
     return parts.joinToString(" · ")
 }

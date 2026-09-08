@@ -110,12 +110,12 @@ data class ReviewLogRecord(
 )
 
 enum class Direction(val label: String, val description: String) {
-    KANJI_TO_MEANING("Kanji → Arti", "Mengucapkan arti dari kanji"),
-    KANJI_TO_HIRAGANA("Kanji → Hiragana", "Mengucapkan hiragana dari kanji"),
-    HIRAGANA_TO_MEANING("Hiragana → Arti", "Mengucapkan arti dari hiragana"),
-    MEANING_TO_HIRAGANA("Arti → Hiragana", "Menulis hiragana dari arti"),
-    HIRAGANA_TO_KANJI("Hiragana → Kanji", "Menulis kanji dari hiragana"),
-    MEANING_TO_KANJI("Arti → Kanji", "Menulis kanji dari arti (paling sulit)");
+    KANJI_TO_MEANING("漢字 → 意味", "Mengucapkan imi dari kanji"),
+    KANJI_TO_HIRAGANA("漢字 → ひらがな", "Mengucapkan hiragana dari kanji"),
+    HIRAGANA_TO_MEANING("ひらがな → 意味", "Mengucapkan imi dari hiragana"),
+    MEANING_TO_HIRAGANA("意味 → ひらがな", "Menulis hiragana dari imi"),
+    HIRAGANA_TO_KANJI("ひらがな → 漢字", "Menulis kanji dari hiragana"),
+    MEANING_TO_KANJI("意味 → 漢字", "Menulis kanji dari imi (paling sulit)");
 
     companion object {
         fun fromOrdinal(ordinal: Int): Direction = values()[ordinal]

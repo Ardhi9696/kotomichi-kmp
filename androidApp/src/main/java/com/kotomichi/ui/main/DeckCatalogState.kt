@@ -19,6 +19,9 @@ import timber.log.Timber
 
 private const val PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000L
 
+/** Cooldown pull-to-refresh agar refetch beruntun (< 5 detik) tidak membuang API. */
+private const val REFRESH_COOLDOWN_MS = 5_000L
+
 data class DeckCatalog(
     val decks: List<Deck> = emptyList(),
     val deckProgressMap: Map<Long, DeckProgress> = emptyMap(),
@@ -88,7 +91,12 @@ class DeckCatalogState(
         }
     }
 
+    private var lastRefreshAt = 0L
+
     suspend fun refresh() {
+        val now = System.currentTimeMillis()
+        if (now - lastRefreshAt < REFRESH_COOLDOWN_MS) return
+        lastRefreshAt = now
         if (catalog.isLoading) {
             sync(showSkeleton = true, force = true)
             return

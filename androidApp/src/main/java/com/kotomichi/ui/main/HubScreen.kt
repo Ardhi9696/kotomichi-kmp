@@ -32,26 +32,66 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kotomichi.di.get
 import com.kotomichi.model.Deck
+import com.kotomichi.model.Vocabulary
 import com.kotomichi.repository.VocabRepository
+import com.kotomichi.ui.components.KotomichiDialog
 import com.kotomichi.ui.theme.KotomichiSpacing
+import com.kotomichi.usecase.AuthUseCase
+import com.kotomichi.usecase.BelajarMode
+import com.kotomichi.usecase.BelajarQuizUseCase
+import com.kotomichi.usecase.BelajarRunProgress
 
 /**
  * Halaman utama tab Belajar (hub).
  * @param paddingValues Padding dari parent
  * @param deck Deck aktif yang dipilih
+ * @param dueCount Jumlah kartu jatuh tempo (semua deck)
  * @param onMenuClick Callback saat menu aksi diklik
+ * @param onBelajarClick Callback saat quick action Belajar diklik (dengan mode)
+ * @param onReviewClick Callback saat quick action Review diklik
  */
 @Composable
 fun HubScreen(
     paddingValues: PaddingValues,
     deck: Deck,
-    onMenuClick: (LearnMenu) -> Unit
+    dueCount: Int,
+    onMenuClick: (LearnMenu) -> Unit,
+    onBelajarClick: (BelajarMode) -> Unit,
+    onReviewClick: () -> Unit
 ) {
-    var vocabList by remember { mutableStateOf<List<com.kotomichi.model.Vocabulary>?>(null) }
+    var vocabList by remember { mutableStateOf<List<Vocabulary>?>(null) }
     var loadingVocab by remember { mutableStateOf(true) }
     var errorVocab by remember { mutableStateOf<String?>(null) }
+    var selectedVocab by remember { mutableStateOf<Vocabulary?>(null) }
+
+    var hardUnlocked by remember(deck.id) { mutableStateOf(false) }
+    var showLockedDialog by remember { mutableStateOf(false) }
+
+    var normalRun by remember(deck.id) { mutableStateOf<BelajarRunProgress?>(null) }
+    var hardRun by remember(deck.id) { mutableStateOf<BelajarRunProgress?>(null) }
+
+    val authUseCase: AuthUseCase = get()
+    val user by authUseCase.currentUser.collectAsStateWithLifecycle(null)
+
+    LaunchedEffect(deck.id, user?.id) {
+        val uid = user?.id
+        if (uid != null) {
+            val belajarUseCase = get<BelajarQuizUseCase>()
+            hardUnlocked = runCatching {
+                belajarUseCase.isHardUnlocked(uid, deck.id)
+            }.getOrDefault(false)
+            // Progress run per mode: percobaan ke-berapa + % soal dijawab.
+            normalRun = runCatching {
+                belajarUseCase.getRunProgress(uid, deck.id, BelajarMode.NORMAL)
+            }.getOrNull()
+            hardRun = runCatching {
+                belajarUseCase.getRunProgress(uid, deck.id, BelajarMode.HARD)
+            }.getOrNull()
+        }
+    }
 
     LaunchedEffect(deck.id) {
         try {
@@ -79,13 +119,40 @@ fun HubScreen(
                 verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.sm)
             ) {
                 LearnMenu.entries.forEach { menu ->
-                    ActionCard(
-                        icon = menu.icon,
-                        title = menu.title,
-                        subtitle = menu.subtitle,
-                        badgeCount = menu.badgeCount,
-                        onClick = { onMenuClick(menu) }
-                    )
+                    if (menu == LearnMenu.Belajar) {
+                        SplitBelajarActionCard(
+                            hardUnlocked = hardUnlocked,
+                            normalProgressPercent = normalRun?.percent ?: 0f,
+                            hardProgressPercent = hardRun?.percent ?: 0f,
+                            normalRunLabel = normalRun?.runLabel,
+                            hardRunLabel = hardRun?.runLabel,
+                            onNormalClick = { onBelajarClick(BelajarMode.NORMAL) },
+                            onHardClick = {
+                                if (hardUnlocked) {
+                                    onBelajarClick(BelajarMode.HARD)
+                                } else {
+                                    showLockedDialog = true
+                                }
+                            }
+                        )
+                    } else if (menu == LearnMenu.Review) {
+                        ActionCard(
+                            icon = menu.icon,
+                            title = menu.title,
+                            subtitle = menu.subtitle,
+                            badgeCount = dueCount,
+                            enabled = dueCount > 0,
+                            onClick = onReviewClick
+                        )
+                    } else {
+                        ActionCard(
+                            icon = menu.icon,
+                            title = menu.title,
+                            subtitle = menu.subtitle,
+                            badgeCount = menu.badgeCount,
+                            onClick = { onMenuClick(menu) }
+                        )
+                    }
                 }
             }
         }
@@ -124,7 +191,11 @@ fun HubScreen(
             val list = vocabList
             if (list != null && list.isNotEmpty()) {
                 items(list.size) { index ->
-                    VocabRow(vocab = list[index], lastItem = index == list.lastIndex)
+                    VocabRow(
+                        vocab = list[index],
+                        lastItem = index == list.lastIndex,
+                        onClick = { selectedVocab = list[index] }
+                    )
                 }
             }
         }
@@ -134,5 +205,23 @@ fun HubScreen(
                 Spacer(Modifier.height(KotomichiSpacing.xl))
             }
         }
+    }
+
+    val current = selectedVocab
+    if (current != null) {
+        VocabDetailSheet(
+            vocab = current,
+            onDismiss = { selectedVocab = null }
+        )
+    }
+
+    if (showLockedDialog) {
+        KotomichiDialog(
+            title = "Mode Sulit Terkunci",
+            text = "Selesaikan Belajar Normal dengan nilai ≥ 90% untuk deck ini guna membuka Mode Sulit.",
+            confirmLabel = "Mengerti",
+            onConfirm = { showLockedDialog = false },
+            onDismiss = { showLockedDialog = false }
+        )
     }
 }

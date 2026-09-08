@@ -7,6 +7,7 @@ package com.kotomichi.ui.main
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kotomichi.ui.components.KotomichiCard
 import com.kotomichi.ui.components.KotomichiCardVariant
 import com.kotomichi.ui.components.KotomichiDialog
+import com.kotomichi.ui.components.KotomichiPullToRefresh
 import com.kotomichi.ui.theme.KotomichiSpacing
 import com.kotomichi.ui.theme.LanguagePreference
 import com.kotomichi.ui.theme.ThemePreference
@@ -43,6 +45,8 @@ fun ProfilTab(
     paddingValues: PaddingValues,
     userName: String,
     userEmail: String,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     onLogout: () -> Unit,
     onUpdateName: suspend (String) -> Unit
 ) {
@@ -55,38 +59,48 @@ fun ProfilTab(
     val showNameDialog = rememberSaveable { mutableStateOf(false) }
     val comingSoonFeature = rememberSaveable { mutableStateOf<String?>(null) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = KotomichiSpacing.lg, vertical = KotomichiSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.lg)
     ) {
-        Text(
-            text = "Pengaturan",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+        KotomichiPullToRefresh(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = KotomichiSpacing.lg, vertical = KotomichiSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(KotomichiSpacing.lg)
+            ) {
+                Text(
+                    text = "Pengaturan",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
 
-        // ── Section: Akun ──
-        ProfilTabAccountSection(
-            userName = userName,
-            userEmail = userEmail,
-            showNameDialog = showNameDialog,
-            comingSoonFeature = comingSoonFeature
-        )
+                // ── Section: Akun ──
+                ProfilTabAccountSection(
+                    userName = userName,
+                    userEmail = userEmail,
+                    showNameDialog = showNameDialog,
+                    comingSoonFeature = comingSoonFeature
+                )
 
-        // ── Section: Umum ──
-        ProfilTabGeneralSection(
-            themeMode = themeMode,
-            languageMode = languageMode,
-            showThemeDialog = showThemeDialog,
-            showLanguageDialog = showLanguageDialog
-        )
+                // ── Section: Umum ──
+                ProfilTabGeneralSection(
+                    themeMode = themeMode,
+                    languageMode = languageMode,
+                    showThemeDialog = showThemeDialog,
+                    showLanguageDialog = showLanguageDialog
+                )
 
-        // ── Logout di paling bawah ──
-        ProfilTabLogoutCard(onClick = { showLogoutDialog.value = true })
+                // ── Logout di paling bawah ──
+                ProfilTabLogoutCard(onClick = { showLogoutDialog.value = true })
+            }
+        }
     }
 
     ProfilTabDialogs(

@@ -9,6 +9,7 @@ import com.kotomichi.usecase.StatisticsUseCase
 import com.kotomichi.usecase.AuthUseCase
 import com.kotomichi.usecase.GamificationUseCase
 import com.kotomichi.usecase.SyncDataUseCase
+import com.kotomichi.usecase.BelajarQuizUseCase
 import org.koin.core.module.Module
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -53,6 +54,15 @@ val sharedModule = module {
     
     factory {
         SyncDataUseCase(get<com.kotomichi.repository.SyncRepository>())
+    }
+
+    factory {
+        BelajarQuizUseCase(
+            get<com.kotomichi.repository.VocabRepository>(),
+            get<com.kotomichi.repository.ProgressRepository>(),
+            get<com.kotomichi.repository.AuthRepository>(),
+            get<GamificationUseCase>()
+        )
     }
 }
 

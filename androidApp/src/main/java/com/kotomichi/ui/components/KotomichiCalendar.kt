@@ -46,7 +46,8 @@ data class CalendarSummary(
     val minutesToday: Int = 0,
     val dayStreak: Int = 0,
     val daysThisMonth: Int = 0,
-    val totalMinutes: Int = 0
+    val totalMinutes: Int = 0,
+    val expToday: Int = 0
 )
 
 // Konfigurasi warna intensitas; index 0 = tidak aktif.
@@ -119,6 +120,7 @@ private fun SummaryRow(summary: CalendarSummary) {
         SummaryTile("${summary.minutesToday}min", "hari ini", Modifier.weight(1f))
         SummaryTile("${summary.dayStreak}", "streak", Modifier.weight(1f))
         SummaryTile("${summary.daysThisMonth}", "hari bulan ini", Modifier.weight(1f))
+        SummaryTile("${summary.expToday}", "EXP", Modifier.weight(1f))
         SummaryTile("${summary.totalMinutes}", "total menit", Modifier.weight(1f))
     }
 }
