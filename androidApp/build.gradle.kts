@@ -90,7 +90,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":shared"))
+    implementation(project(":sharedLogic"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)

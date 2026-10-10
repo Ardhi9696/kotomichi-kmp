@@ -17,5 +17,5 @@ pluginManagement {
 
 rootProject.name = "Kotomichi"
 
-include(":shared")
+include(":sharedLogic")
 include(":androidApp")

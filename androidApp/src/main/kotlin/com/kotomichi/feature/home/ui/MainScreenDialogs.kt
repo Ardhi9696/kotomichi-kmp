@@ -1,0 +1,59 @@
+/**
+ * File: MainScreenDialogs.kt
+ * Responsibility: Merender dialog-dialog (konfirmasi keluar aplikasi, debug info, loading overlay).
+ *                 Menangani state visibility untuk setiap dialog.
+ */
+package com.kotomichi.feature.home.ui
+
+import androidx.compose.runtime.Composable
+import com.kotomichi.core.designsystem.common.KotomichiDialog
+import com.kotomichi.core.designsystem.common.KotomichiGlobalLoadingOverlay
+
+@Composable
+fun MainScreenDialogs(
+    isLoggingOut: Boolean,
+    showExitDialog: Boolean,
+    showDebug: Boolean,
+    debugInfo: String,
+    showMenuExitConfirm: Boolean,
+    onMenuExitConfirm: () -> Unit,
+    onMenuExitDismiss: () -> Unit,
+    onExitApp: () -> Unit,
+    onExitDialogDismiss: () -> Unit,
+    onDebugDismiss: () -> Unit
+) {
+    if (isLoggingOut) {
+        KotomichiGlobalLoadingOverlay(isVisible = true)
+    }
+
+    if (showMenuExitConfirm) {
+        KotomichiDialog(
+            title = "Keluar dari Menu",
+            text = "Progress sesi kamu sudah tersimpan. Yakin ingin keluar dari menu ini?",
+            confirmLabel = "Keluar",
+            dismissLabel = "Batal",
+            isDestructive = true,
+            onConfirm = onMenuExitConfirm,
+            onDismiss = onMenuExitDismiss
+        )
+    }
+
+    if (showExitDialog) {
+        KotomichiDialog(
+            title = "Keluar Aplikasi",
+            text = "Yakin ingin keluar dari aplikasi?",
+            confirmLabel = "Keluar",
+            dismissLabel = "Batal",
+            isDestructive = true,
+            onConfirm = {
+                onExitDialogDismiss()
+                onExitApp()
+            },
+            onDismiss = onExitDialogDismiss
+        )
+    }
+
+    if (showDebug) {
+        DebugInfoDialog(info = debugInfo, onDismiss = onDebugDismiss)
+    }
+}

@@ -1,0 +1,112 @@
+/**
+ * File: MainScreen.kt
+ * Responsibility: Orchestrator utama UI aplikasi. Mengkoordinasikan state, top bar, konten tab,
+ *                 bottom navigation, dan dialog. Menggunakan komponen terpisah untuk setiap tanggung jawab.
+ */
+package com.kotomichi.feature.home.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import com.kotomichi.core.designsystem.common.KotomichiBottomNavigation
+import com.kotomichi.core.designsystem.common.KotomichiGlobalLoadingOverlay
+import kotlinx.coroutines.launch
+
+@Composable
+fun MainScreen(
+    onExitApp: () -> Unit,
+    onNavigateToLearnDeck: (Long) -> Unit,
+    onNavigateToReview: () -> Unit
+) {
+    val context = LocalContext.current
+    val state = rememberMainScreenState(context, onExitApp)
+
+    // Back handler: jika ada menu aktif, minta konfirmasi keluar menu;
+    // jika tidak, tampilkan dialog keluar aplikasi
+    BackHandler {
+        if (state.activeMenu != null) {
+            state.requestMenuExit()
+        } else {
+            state.setShowExitDialog(true)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            MainScreenTopBar(
+                selected = state.selected,
+                activeMenu = state.activeMenu,
+                selectedDeck = state.selectedDeck,
+                showDeckPicker = state.showDeckPicker,
+                user = state.user,
+                currentLevel = state.currentLevel,
+                totalExp = state.totalExp,
+                currentLevelExp = state.currentLevelExp,
+                nextLevelExp = state.nextLevelExp,
+                expProgress = state.expProgress,
+                onDebugTap = { state.setShowDebug(true) },
+                onDeckClick = { state.setShowDeckPicker(true) },
+                onMenuBack = state.requestMenuExit
+            )
+        },
+        bottomBar = {
+            if (state.activeMenu == null) {
+                KotomichiBottomNavigation(
+                    current = state.selected,
+                    onNavigate = state.setSelected
+                )
+            }
+        }
+    ) { paddingValues ->
+        MainScreenContent(
+            paddingValues = paddingValues,
+            selected = state.selected,
+            user = state.user,
+            deckCatalog = state.deckCatalog,
+            dueCount = state.dueCount,
+            activeMenu = state.activeMenu,
+            belajarMode = state.belajarMode,
+            showDeckPicker = state.showDeckPicker,
+            selectedDeck = state.selectedDeck,
+            setBelajarMode = state.setBelajarMode,
+            onRefresh = { state.scope.launch { state.catalogState.refresh() } },
+            onSelectDeck = { deck ->
+                state.setSelectedDeckId(deck.id)
+                com.kotomichi.core.designsystem.preference.DeckPreference.write(context, deck.id)
+                state.setShowDeckPicker(false)
+            },
+            onDismissDeckPicker = { state.setShowDeckPicker(false) },
+            onActivateMenu = state.setActiveMenu,
+            onRequestMenuExit = state.requestMenuExit,
+            onLogout = {
+                state.setIsLoggingOut(true)
+                state.scope.launch {
+                    try {
+                        com.kotomichi.shared.core.di.get<com.kotomichi.shared.feature.auth.domain.usecase.AuthUseCase>().logout()
+                    } finally {
+                        state.setIsLoggingOut(false)
+                    }
+                }
+            },
+            onUpdateName = { newName ->
+                val currentUser = state.user ?: throw IllegalStateException("Tidak ada sesi aktif")
+                com.kotomichi.shared.core.di.get<com.kotomichi.shared.feature.auth.domain.usecase.AuthUseCase>()
+                    .updateProfile(currentUser.copy(displayName = newName))
+            }
+        )
+    }
+
+    MainScreenDialogs(
+        isLoggingOut = state.isLoggingOut,
+        showExitDialog = state.showExitDialog,
+        showDebug = state.showDebug,
+        debugInfo = state.debugInfo,
+        showMenuExitConfirm = state.showMenuExitConfirm,
+        onMenuExitConfirm = state.confirmMenuExit,
+        onMenuExitDismiss = state.dismissMenuExitConfirm,
+        onExitApp = state.onExitApp,
+        onExitDialogDismiss = { state.setShowExitDialog(false) },
+        onDebugDismiss = { state.setShowDebug(false) }
+    )
+}

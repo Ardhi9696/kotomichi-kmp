@@ -1,0 +1,29 @@
+package com.kotomichi.app
+
+import android.app.Application
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.kotomichi.app.di.androidModule
+import com.kotomichi.shared.core.di.sharedModule
+import com.kotomichi.core.designsystem.preference.LanguagePreference
+import com.kotomichi.core.designsystem.preference.ThemePreference
+import com.kotomichi.core.sync.SyncScheduler
+import com.kotomichi.core.sync.SyncTtlManager
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.startKoin
+import org.koin.dsl.module
+
+class KotomichiApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // Aktifkan Crashlytics untuk menangkap semua error runtime (fatal + non-fatal).
+        runCatching { FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true) }
+        ThemePreference.init(this)
+        LanguagePreference.init(this)
+        startKoin {
+            androidContext(this@KotomichiApplication)
+            modules(listOf(sharedModule, androidModule))
+        }
+        SyncScheduler.schedulePeriodicSync(this)
+        SyncTtlManager.init(this)
+    }
+}

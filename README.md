@@ -14,21 +14,22 @@ A Kotlin Multiplatform (KMP) mobile application for learning Japanese vocabulary
 ## Architecture
 
 ```
-kotomichi/
-├── shared/                 # KMP shared module
-│   ├── commonMain/         # Shared business logic
-│   │   ├── model/          # Data models
-│   │   ├── fsrs/           # FSRS engine (pure Kotlin)
-│   │   ├── bkt/            # BKT engine (pure Kotlin)
-│   │   ├── repository/     # Repository interfaces
-│   │   ├── usecase/        # Business logic use cases
-│   │   └── di/             # Koin dependency injection
-│   ├── androidMain/        # Android implementations
-│   └── iosMain/            # iOS implementations (future)
+kotomichi-kmp/
+├── sharedLogic/            # KMP shared module (commonMain / androidMain)
+│   └── src/commonMain/kotlin/com/kotomichi/shared/
+│       ├── core/           # model, fsrs, bkt, furigana, repository (interfaces), di, util
+│       └── feature/        # per-feature domain usecases (auth, belajar, gamifikasi)
 ├── androidApp/             # Android app (Jetpack Compose + Material 3)
-├── iosApp/                 # iOS app (SwiftUI) - future
-└── sqldelight/             # SQLDelight database schema
+│   └── src/main/kotlin/com/kotomichi/
+│       ├── app/            # Application, Activity, di, navigation
+│       ├── core/           # designsystem (theme/common/preference), sync
+│       └── feature/        # per-feature UI (auth, belajar, review, dashboard, home, splash)
+├── .github/workflows/      # CI: kmp-verify.yml (unit tests + debug assemble)
+└── local.properties.example # Template for local secrets (git-ignored local.properties)
 ```
+
+SQLDelight schema lives in `sharedLogic/src/commonMain/sqldelight/`.
+iOS targets are declared in `sharedLogic` but there is no `iosApp` yet — repository implementations are currently Android-only.
 
 ## Tech Stack
 
@@ -46,19 +47,21 @@ kotomichi/
 ### Prerequisites
 
 - Android Studio Hedgehog or later
-- JDK 17+
-- Kotlin 2.0.0+
+- JDK 21 (project targets JVM 21)
+- Kotlin 2.1.0 (see `gradle/libs.versions.toml`)
+
+Copy `local.properties.example` to `local.properties` and fill in Supabase credentials (optional for debug builds — placeholders are used otherwise).
 
 ### Build
 
 ```bash
-./gradlew assembleDebug
+./gradlew :androidApp:assembleDebug
 ```
 
 ### Run Tests
 
 ```bash
-./gradlew shared:testDebugUnitTest
+./gradlew :sharedLogic:testDebugUnitTest
 ```
 
 ## Database Schema
@@ -93,28 +96,29 @@ Bayesian Knowledge Tracing for grammar patterns:
 
 ## Project Structure Details
 
-### Shared Module (`shared/`)
+### Shared Module (`sharedLogic/`)
 
 Pure Kotlin business logic with no platform dependencies:
 
-- **Models**: Data classes for Vocabulary, Deck, SRS Progress, User, etc.
-- **FSRS Engine**: `FsrsCalculator` - Pure functions for SRS calculations
-- **BKT Engine**: `BktCalculator` - Pure functions for grammar tracing
-- **Repositories**: Interfaces for data access (Vendor-agnostic)
-- **Use Cases**: Business logic orchestration
+- **Models**: Data classes for Vocabulary, Deck, SRS Progress, User, etc. (`core/model/`)
+- **FSRS Engine**: `FsrsCalculator` - Pure functions for SRS calculations (`core/fsrs/`)
+- **BKT Engine**: `BktCalculator` - Pure functions for grammar tracing (`core/bkt/`)
+- **Repositories**: Interfaces for data access (Vendor-agnostic) (`core/repository/`)
+- **Use Cases**: Business logic orchestration (`feature/<name>/domain/usecase/`)
+- **Android data layer**: Repository implementations in `androidMain` (`feature/<name>/data/`)
 
 ### Android App (`androidApp/`)
 
 Native Android UI with Jetpack Compose:
 
-- **Screens**: Dashboard, Learn, Review, Auth
-- **Navigation**: Navigation Compose
-- **DI**: Koin modules for Android implementations
-- **Workers**: Background sync with WorkManager
+- **App shell**: `app/` (Application, Activity, DI, navigation)
+- **Design system**: `core/designsystem/` (theme tokens, reusable composables, preferences)
+- **Features**: `feature/<auth|belajar|review|dashboard|home|splash>/ui/` (per-feature screens)
+- **Workers**: Background sync with WorkManager (`core/sync/`)
 
-### SQLDelight (`sqldelight/`)
+### SQLDelight (`sharedLogic/src/commonMain/sqldelight/`)
 
-Type-safe database schema with generated Kotlin code:
+Type-safe database schema with generated Kotlin code (package `com.kotomichi.db`):
 
 - Tables for all entities
 - Custom queries for complex operations

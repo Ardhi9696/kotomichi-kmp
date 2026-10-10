@@ -1,0 +1,9 @@
+# Copy to local.properties (git-ignored) and fill in. Never commit the real file.
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+
+# Release signing (optional for debug builds)
+RELEASE_KEYSTORE_PATH=ci/release-keystore.jks
+RELEASE_KEYSTORE_PASSWORD=
+RELEASE_KEY_ALIAS=
+RELEASE_KEY_PASSWORD=

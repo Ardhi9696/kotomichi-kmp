@@ -1,0 +1,84 @@
+package com.kotomichi.app
+
+import android.app.Activity
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kotomichi.app.navigation.AppNavHost
+import com.kotomichi.feature.splash.ui.SplashScreen
+import com.kotomichi.core.designsystem.theme.KotomichiTheme
+import com.kotomichi.core.designsystem.preference.ThemePreference
+import com.kotomichi.shared.feature.auth.domain.usecase.AuthUseCase
+import kotlinx.coroutines.delay
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+
+class MainActivity : ComponentActivity(), KoinComponent {
+    private val authUseCase: AuthUseCase by inject()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            val themeMode by ThemePreference.mode.collectAsStateWithLifecycle()
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                ThemePreference.MODE_DARK -> true
+                ThemePreference.MODE_LIGHT -> false
+                else -> systemDark
+            }
+            SystemBarAppearance(darkTheme = darkTheme)
+            KotomichiTheme(darkTheme = darkTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val isAuthenticated by authUseCase.isAuthenticated.collectAsStateWithLifecycle(false)
+                    var showSplash by rememberSaveable { mutableStateOf(true) }
+
+                    LaunchedEffect(Unit) {
+                        delay(1400)
+                        showSplash = false
+                    }
+
+                    if (showSplash) {
+                        SplashScreen()
+                    } else {
+                        AppNavHost(isAuthenticated = isAuthenticated)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemBarAppearance(darkTheme: Boolean) {
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        DisposableEffect(darkTheme) {
+            val window = (view.context as Activity).window
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
+            onDispose {}
+        }
+    }
+}
